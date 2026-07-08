@@ -1,7 +1,99 @@
 @import "tailwindcss";
 
+:root {
+  --background: #150c38;
+  --foreground: #f5f2ff;
+  --muted: #c9c0ee;
+  --subtle: #9d92d6;
+  --accent: #8b5cf6;
+  --accent-hover: #7c4dfa;
+  --accent-2: #22d3ee;
+  --pink: #f472b6;
+  --amber: #fbbf24;
+  --card: #1f1352;
+  --border: #3b2b7d;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-2: var(--accent-2);
+  --color-pink: var(--pink);
+  --color-amber: var(--amber);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
 body {
-  background: #0e0e12;
-  color: #e8e8f0;
+  background:
+    radial-gradient(1000px 600px at 85% -10%, rgba(139, 92, 246, 0.28), transparent 60%),
+    radial-gradient(800px 500px at -10% 30%, rgba(34, 211, 238, 0.16), transparent 60%),
+    radial-gradient(700px 500px at 60% 110%, rgba(244, 114, 182, 0.14), transparent 60%),
+    var(--background);
+  color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.text-rainbow {
+  background: linear-gradient(90deg, var(--accent-2), var(--accent), var(--pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 90%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.08); }
+}
+.animate-blink {
+  animation: blink 4.5s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.9) translateY(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-pop {
+  animation: pop-in 0.35s ease-out both;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+.animate-twinkle {
+  animation: twinkle 2.6s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+.animate-glow {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float,
+  .animate-blink,
+  .animate-pop,
+  .animate-twinkle,
+  .animate-glow {
+    animation: none;
+  }
 }
