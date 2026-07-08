@@ -27,7 +27,7 @@ export default async function CoursePage({ params }: Props) {
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
       <Link href="/courses" className="text-sm text-accent hover:underline">
-        ← All courses
+        ← All learning paths
       </Link>
 
       <div className="mt-6">

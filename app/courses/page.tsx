@@ -4,18 +4,19 @@ import { courses } from "@/lib/data/courses";
 import { LevelBadge } from "@/components/level-badge";
 
 export const metadata: Metadata = {
-  title: "Courses",
+  title: "Learning Paths",
   description:
-    "The full Vibe Coding 24/7 curriculum: sequenced courses in AI-assisted software development, from first principles to production systems.",
+    "Every Vibe Coding 24/7 learning path: sequenced adventures in AI-assisted software development, from first steps to production systems.",
 };
 
 export default function CoursesPage() {
   return (
     <div className="mx-auto max-w-6xl px-6 py-16">
-      <h1 className="text-3xl font-semibold tracking-tight">Courses</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Learning Paths</h1>
       <p className="mt-3 max-w-2xl leading-relaxed text-muted">
-        The curriculum is sequenced. Foundations assumes no programming
-        background; each later course builds on the one before it.
+        Each path is a sequenced adventure. Foundations assumes no programming
+        background; each later path builds on the one before it. Not sure where
+        to start? <Link href="/" className="text-accent-2 hover:underline">Let Byte pick for you</Link>.
       </p>
 
       <div className="mt-10 space-y-6">

@@ -3,9 +3,12 @@
 A structured online school for AI-assisted software development — live at
 [vibecoding247.net](https://vibecoding247.net).
 
-Professional, sequenced instruction in vibe coding: a course catalog with full
-syllabi (modules, lessons, objectives), and a live class schedule for
-lectures, workshops, code reviews, and office hours.
+An immersive, game-style learning platform for vibe coding. Byte, the AI
+guide character, greets each visitor on the landing page, asks their age
+group and AI knowledge level, and recommends a learning path. Underneath the
+game layer is a real sequenced curriculum (modules, lessons, objectives) and
+a live class schedule for workshops, code reviews, and office hours.
+Learner profiles are stored client-side in localStorage for now.
 
 ## Stack
 

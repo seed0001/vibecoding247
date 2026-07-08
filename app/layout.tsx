@@ -17,11 +17,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://vibecoding247.net"),
   title: {
-    default: "Vibe Coding 24/7 — Structured Education for AI-Assisted Development",
+    default: "Vibe Coding 24/7 — Learn to Build with AI, Adventure-Style",
     template: "%s | Vibe Coding 24/7",
   },
   description:
-    "A structured online school for AI-assisted software development. Sequenced courses, live classes, and professional instruction in vibe coding.",
+    "An immersive learning game for AI-assisted software development. Meet Byte, find your learning path, and level up with structured lessons and live classes.",
 };
 
 export default function RootLayout({
