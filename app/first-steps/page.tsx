@@ -4,9 +4,9 @@ import { FirstStepsCanvas } from "@/components/three/first-steps-canvas";
 import { firstStepsLessons } from "@/lib/data/first-steps";
 
 export const metadata: Metadata = {
-  title: "First Steps — Learn Computers & AI from Zero",
+  title: "First Steps — Learn to Navigate a 3D World",
   description:
-    "A friendly island world for young learners and absolute beginners: what a computer is, what AI is, how to talk to it safely, and your first tiny build.",
+    "A playable 3D playground for young learners: master WASD, jumping, and collecting like a gamer, then walk into lesson stations covering computers, AI, and your first tiny build.",
 };
 
 export default function FirstStepsPage() {
@@ -25,20 +25,26 @@ export default function FirstStepsPage() {
       {/* Immersive island world */}
       <section className="relative h-[calc(100vh-3.5rem)] min-h-[540px] w-full">
         <FirstStepsCanvas lessons={worldLessons} />
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center px-6 pt-10 text-center">
+        <div className="pointer-events-none absolute inset-x-0 top-16 flex flex-col items-center px-6 text-center">
           <h1 className="rounded-2xl bg-white/85 px-5 py-2 text-2xl font-extrabold tracking-tight text-slate-800 shadow backdrop-blur sm:text-3xl">
-            First Steps 🏝️
+            First Steps 🎮
           </h1>
-          <p className="mt-3 max-w-md rounded-xl bg-white/75 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur">
-            Six islands, one adventure: from &quot;what IS a computer?&quot; to
-            building your very first app. Click island 1 to begin!
-          </p>
         </div>
       </section>
 
       {/* Classic list (accessibility + no-WebGL fallback) */}
       <section className="mx-auto max-w-4xl px-6 py-16">
         <h2 className="text-xl font-semibold tracking-tight">
+          Why a playground?
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          Moving through 3D space with W-A-S-D, the mouse, and the spacebar is
+          becoming a foundational computer skill — the same controls work in
+          games, creative tools, and the 3D websites that are coming next.
+          First Steps teaches it by playing: walk, jump, collect the stars,
+          then step into a glowing ring to open a lesson.
+        </p>
+        <h2 className="mt-10 text-xl font-semibold tracking-tight">
           The lessons, as a list
         </h2>
         <p className="mt-2 text-sm text-muted">
