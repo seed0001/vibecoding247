@@ -1,203 +1,114 @@
 import Link from "next/link";
-import { Pill } from "@/components/pill";
+import { HubCanvas } from "@/components/three/hub-canvas";
 import { guides } from "@/lib/data/guides";
-import { trendSignals } from "@/lib/data/pulse";
+import { firstStepsLessons } from "@/lib/data/first-steps";
 import { programs } from "@/lib/data/programs";
 
-const pillars = [
+const tracks = [
+  {
+    href: "/first-steps",
+    title: "First Steps",
+    audience: "Young learners & absolute beginners",
+    description:
+      "A floating-island world that starts from zero: what a computer is, what AI is, how to talk to it safely, and your first tiny build. No experience needed — not even a little.",
+    status: `${firstStepsLessons.length} lessons live`,
+    accent: "text-emerald-400",
+  },
   {
     href: "/guides",
-    kicker: "01",
-    title: "How-to guides",
+    title: "Builders",
+    audience: "Developers & makers shipping with AI",
     description:
-      "In-depth, practical walkthroughs for AI-assisted development — from your first prompt to a deployed, secured application.",
-    cta: "Browse guides",
+      "In-depth guides on vibe coding and app building, a live pulse on GitHub and Hugging Face trends, and a verified directory of credits programs to fund your work.",
+    status: `${guides.length} guides · ${programs.length} programs`,
+    accent: "text-accent",
   },
   {
-    href: "/pulse",
-    kicker: "02",
-    title: "The Pulse",
+    href: "/new-to-ai",
+    title: "New to the AI Era",
+    audience: "Experienced minds adapting to AI",
     description:
-      "A curated trend radar plus live data on what's rising across GitHub and Hugging Face, refreshed hourly.",
-    cta: "View the Pulse",
-  },
-  {
-    href: "/programs",
-    kicker: "03",
-    title: "Credits & programs",
-    description:
-      "A verified directory of partnership programs offering cloud credits, API credits, and GPU grants to builders.",
-    cta: "Find funding",
+      "You already know how the world works — this track covers what changed: AI as a daily assistant, staying safe from AI-era scams, and building things you never thought you'd build.",
+    status: "Track in progress",
+    accent: "text-warning",
   },
 ];
 
 export default function HomePage() {
-  const featuredGuides = guides.slice(0, 4);
-  const hotSignals = trendSignals.slice(0, 3);
-
   return (
-    <div className="mx-auto max-w-6xl px-6">
-      {/* Hero */}
-      <section className="border-b border-border py-24">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-          The hub for AI-assisted builders
-        </p>
-        <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
-          Build software with AI.
-          <br />
-          <span className="text-muted">Stay ahead of what&apos;s next.</span>
-        </h1>
-        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">
-          Practical guides for vibe coding and app building, a live pulse on
-          the AI development ecosystem, and a directory of credits programs
-          that fund your work — in one place, no login required.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            href="/guides"
-            className="rounded-md bg-accent-strong px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
-          >
-            Explore the guides
-          </Link>
-          <Link
-            href="/programs"
-            className="rounded-md border border-border-strong px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent"
-          >
-            Find builder credits
-          </Link>
+    <div>
+      {/* Immersive hub */}
+      <section className="relative h-[calc(100vh-3.5rem)] min-h-[540px] w-full">
+        <HubCanvas />
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center px-6 pt-14 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+            The hub for AI-assisted builders
+          </p>
+          <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            Everyone starts somewhere. Pick your portal.
+          </h1>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/60">
+            Three tracks, one goal: making you great with AI — whether
+            you&apos;re six, shipping production software, or adapting a
+            lifetime of experience to new tools.
+          </p>
         </div>
-        <dl className="mt-14 grid max-w-2xl grid-cols-3 gap-6 text-sm">
-          <div>
-            <dt className="text-subtle">In-depth guides</dt>
-            <dd className="mt-1 font-mono text-2xl font-medium">
-              {guides.length}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-subtle">Trends tracked</dt>
-            <dd className="mt-1 font-mono text-2xl font-medium">
-              {trendSignals.length}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-subtle">Programs verified</dt>
-            <dd className="mt-1 font-mono text-2xl font-medium">
-              {programs.length}
-            </dd>
-          </div>
-        </dl>
+        <p className="pointer-events-none absolute inset-x-0 bottom-5 text-center text-xs text-white/40">
+          Click a portal to enter · scroll for the classic view
+        </p>
       </section>
 
-      {/* Pillars */}
-      <section className="grid gap-px overflow-hidden rounded-xl border border-border bg-border my-16 sm:grid-cols-3">
-        {pillars.map((pillar) => (
-          <Link
-            key={pillar.href}
-            href={pillar.href}
-            className="group bg-card p-8 transition-colors hover:bg-card-raised"
-          >
-            <p className="font-mono text-xs text-subtle">{pillar.kicker}</p>
-            <h2 className="mt-3 text-lg font-semibold tracking-tight">
-              {pillar.title}
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              {pillar.description}
-            </p>
-            <p className="mt-5 text-sm font-medium text-accent">
-              {pillar.cta}
-              <span className="ml-1 inline-block transition-transform group-hover:translate-x-0.5">
-                →
-              </span>
-            </p>
-          </Link>
-        ))}
-      </section>
-
-      {/* Featured guides */}
-      <section className="py-8">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-xl font-semibold tracking-tight">
-            Essential guides
-          </h2>
-          <Link
-            href="/guides"
-            className="text-sm text-accent hover:underline"
-          >
-            View all →
-          </Link>
-        </div>
-        <div className="mt-6 divide-y divide-border border-y border-border">
-          {featuredGuides.map((guide) => (
+      {/* Accessible / classic path chooser */}
+      <section className="mx-auto max-w-6xl px-6 py-20">
+        <h2 className="text-xl font-semibold tracking-tight">
+          Choose your path
+        </h2>
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          {tracks.map((track) => (
             <Link
-              key={guide.slug}
-              href={`/guides/${guide.slug}`}
-              className="group flex items-baseline justify-between gap-6 py-5"
+              key={track.href}
+              href={track.href}
+              className="group rounded-xl border border-border bg-card p-7 transition-colors hover:border-border-strong hover:bg-card-raised"
             >
-              <div className="min-w-0">
-                <h3 className="font-medium tracking-tight transition-colors group-hover:text-accent">
-                  {guide.title}
-                </h3>
-                <p className="mt-1 line-clamp-1 text-sm text-muted">
-                  {guide.summary}
-                </p>
-              </div>
-              <span className="shrink-0 text-xs text-subtle">
-                {guide.category} · {guide.readingMinutes} min
-              </span>
+              <p className={`text-xs font-semibold uppercase tracking-wider ${track.accent}`}>
+                {track.audience}
+              </p>
+              <h3 className="mt-3 text-lg font-semibold tracking-tight transition-colors group-hover:text-accent">
+                {track.title}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                {track.description}
+              </p>
+              <p className="mt-5 font-mono text-xs text-subtle">{track.status}</p>
             </Link>
           ))}
         </div>
-      </section>
 
-      {/* Radar preview */}
-      <section className="py-8">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-xl font-semibold tracking-tight">
-            On the radar
-          </h2>
-          <Link href="/pulse" className="text-sm text-accent hover:underline">
-            Full pulse →
-          </Link>
-        </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          {hotSignals.map((signal) => (
-            <div
-              key={signal.title}
-              className="rounded-xl border border-border bg-card p-6"
-            >
-              <Pill tone={signal.momentum === "Hot" ? "critical" : "warning"}>
-                {signal.momentum}
-              </Pill>
-              <h3 className="mt-4 font-medium leading-snug tracking-tight">
-                {signal.title}
-              </h3>
-              <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted">
-                {signal.description}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Programs teaser */}
-      <section className="mb-24 mt-8 rounded-xl border border-border bg-card p-8 sm:p-10">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="max-w-2xl">
-            <h2 className="text-xl font-semibold tracking-tight">
-              Don&apos;t pay full price to build
-            </h2>
-            <p className="mt-3 leading-relaxed text-muted">
-              We track {programs.length} active credits and partnership
-              programs — from $1,000 self-serve cloud credits to six-figure
-              packages for AI startups — with eligibility notes and direct
-              application links, each verified by hand.
+        {/* Builders quick links */}
+        <div className="mt-14 grid gap-4 border-t border-border pt-10 sm:grid-cols-3">
+          <Link href="/guides" className="group">
+            <h3 className="font-medium tracking-tight transition-colors group-hover:text-accent">
+              How-to guides →
+            </h3>
+            <p className="mt-1 text-sm text-muted">
+              Prompting, tooling, shipping, debugging, and security.
             </p>
-          </div>
-          <Link
-            href="/programs"
-            className="shrink-0 rounded-md bg-accent-strong px-5 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-accent-hover"
-          >
-            Browse programs
+          </Link>
+          <Link href="/pulse" className="group">
+            <h3 className="font-medium tracking-tight transition-colors group-hover:text-accent">
+              The Pulse →
+            </h3>
+            <p className="mt-1 text-sm text-muted">
+              Live trends from GitHub and Hugging Face, refreshed hourly.
+            </p>
+          </Link>
+          <Link href="/programs" className="group">
+            <h3 className="font-medium tracking-tight transition-colors group-hover:text-accent">
+              Credits &amp; programs →
+            </h3>
+            <p className="mt-1 text-sm text-muted">
+              {programs.length} verified programs funding builders right now.
+            </p>
           </Link>
         </div>
       </section>
