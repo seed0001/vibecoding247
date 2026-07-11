@@ -1,22 +1,23 @@
 const tones = {
-  violet: "bg-accent/15 text-accent",
-  cyan: "bg-accent-2/15 text-accent-2",
-  pink: "bg-pink/15 text-pink",
-  amber: "bg-amber/15 text-amber",
+  neutral: "border-border-strong text-muted",
+  accent: "border-accent/40 text-accent",
+  positive: "border-positive/40 text-positive",
+  warning: "border-warning/40 text-warning",
+  critical: "border-critical/40 text-critical",
 } as const;
 
 export type PillTone = keyof typeof tones;
 
 export function Pill({
   children,
-  tone = "violet",
+  tone = "neutral",
 }: {
   children: React.ReactNode;
   tone?: PillTone;
 }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${tones[tone]}`}
+      className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-medium ${tones[tone]}`}
     >
       {children}
     </span>
