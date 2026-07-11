@@ -1,24 +1,18 @@
 import type { MetadataRoute } from "next";
-import { courses } from "@/lib/data/courses";
+import { guides } from "@/lib/data/guides";
 
 const BASE = "https://vibecoding247.net";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const staticPages = ["", "/courses", "/schedule", "/about"].map((path) => ({
-    url: `${BASE}${path}`,
-  }));
-
-  const coursePages = courses.map((course) => ({
-    url: `${BASE}/courses/${course.slug}`,
-  }));
-
-  const lessonPages = courses.flatMap((course) =>
-    course.modules.flatMap((mod) =>
-      mod.lessons.map((lesson) => ({
-        url: `${BASE}/courses/${course.slug}/lessons/${lesson.slug}`,
-      })),
-    ),
+  const staticPages = ["", "/guides", "/pulse", "/programs", "/about"].map(
+    (path) => ({
+      url: `${BASE}${path}`,
+    }),
   );
 
-  return [...staticPages, ...coursePages, ...lessonPages];
+  const guidePages = guides.map((guide) => ({
+    url: `${BASE}/guides/${guide.slug}`,
+  }));
+
+  return [...staticPages, ...guidePages];
 }
