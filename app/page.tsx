@@ -10,7 +10,7 @@ const tracks = [
     title: "First Steps",
     audience: "Young learners & absolute beginners",
     description:
-      "A floating-island world that starts from zero: what a computer is, what AI is, how to talk to it safely, and your first tiny build. No experience needed — not even a little.",
+      "A playable 3D world that starts from zero: learn to move with W-A-S-D, jump, and collect like a gamer, then walk into lessons on computers, AI, and your first tiny build.",
     status: `${firstStepsLessons.length} lessons live`,
     accent: "text-emerald-400",
   },
