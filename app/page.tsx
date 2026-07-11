@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Mascot } from "@/components/mascot";
 import { Pill } from "@/components/pill";
 import { guides } from "@/lib/data/guides";
 import { trendSignals } from "@/lib/data/pulse";
@@ -8,151 +7,171 @@ import { programs } from "@/lib/data/programs";
 const pillars = [
   {
     href: "/guides",
-    emoji: "📚",
-    title: "How-To Guides",
+    kicker: "01",
+    title: "How-to guides",
     description:
-      "Practical, no-fluff walkthroughs for vibe coding and app building — from your first prompt to a deployed, secured product.",
-    cta: "Browse the guides",
+      "In-depth, practical walkthroughs for AI-assisted development — from your first prompt to a deployed, secured application.",
+    cta: "Browse guides",
   },
   {
     href: "/pulse",
-    emoji: "📡",
+    kicker: "02",
     title: "The Pulse",
     description:
-      "What's hot in vibe coding right now: trend radar, what's blowing up on GitHub and Hugging Face, and where the community hangs out.",
-    cta: "Check the pulse",
+      "A curated trend radar plus live data on what's rising across GitHub and Hugging Face, refreshed hourly.",
+    cta: "View the Pulse",
   },
   {
     href: "/programs",
-    emoji: "🎁",
-    title: "Credits & Programs",
+    kicker: "03",
+    title: "Credits & programs",
     description:
-      "A living directory of partnership and outreach programs — cloud credits, API credits, and GPU grants you can apply for today.",
-    cta: "Find free credits",
+      "A verified directory of partnership programs offering cloud credits, API credits, and GPU grants to builders.",
+    cta: "Find funding",
   },
 ];
 
 export default function HomePage() {
-  const featuredGuides = guides.slice(0, 3);
+  const featuredGuides = guides.slice(0, 4);
   const hotSignals = trendSignals.slice(0, 3);
 
   return (
     <div className="mx-auto max-w-6xl px-6">
       {/* Hero */}
-      <section className="flex flex-col items-center gap-10 py-20 text-center sm:flex-row sm:text-left">
-        <div className="flex-1">
-          <p className="text-sm font-semibold uppercase tracking-widest text-accent-2">
-            The community hub for AI builders
-          </p>
-          <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
-            Learn it. Track it. <span className="text-rainbow">Ship it.</span>
-          </h1>
-          <p className="mt-5 max-w-xl leading-relaxed text-muted">
-            Vibe Coding 24/7 is an open, community-driven home for people
-            building software with AI — practical how-tos, a live pulse on
-            what&apos;s trending across GitHub and Hugging Face, and a
-            directory of credits programs to fund your builds.
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-4 sm:justify-start">
-            <Link
-              href="/guides"
-              className="rounded-2xl bg-accent px-6 py-3 font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-accent-hover hover:shadow-[0_0_30px_rgba(139,92,246,0.5)]"
-            >
-              Start with the guides →
-            </Link>
-            <Link
-              href="/pulse"
-              className="rounded-2xl border border-border bg-card px-6 py-3 font-bold transition-all hover:-translate-y-0.5 hover:border-accent-2 hover:text-accent-2"
-            >
-              What&apos;s hot right now
-            </Link>
-          </div>
+      <section className="border-b border-border py-24">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+          The hub for AI-assisted builders
+        </p>
+        <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+          Build software with AI.
+          <br />
+          <span className="text-muted">Stay ahead of what&apos;s next.</span>
+        </h1>
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">
+          Practical guides for vibe coding and app building, a live pulse on
+          the AI development ecosystem, and a directory of credits programs
+          that fund your work — in one place, no login required.
+        </p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link
+            href="/guides"
+            className="rounded-md bg-accent-strong px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+          >
+            Explore the guides
+          </Link>
+          <Link
+            href="/programs"
+            className="rounded-md border border-border-strong px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent"
+          >
+            Find builder credits
+          </Link>
         </div>
-        <Mascot size={200} />
+        <dl className="mt-14 grid max-w-2xl grid-cols-3 gap-6 text-sm">
+          <div>
+            <dt className="text-subtle">In-depth guides</dt>
+            <dd className="mt-1 font-mono text-2xl font-medium">
+              {guides.length}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-subtle">Trends tracked</dt>
+            <dd className="mt-1 font-mono text-2xl font-medium">
+              {trendSignals.length}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-subtle">Programs verified</dt>
+            <dd className="mt-1 font-mono text-2xl font-medium">
+              {programs.length}
+            </dd>
+          </div>
+        </dl>
       </section>
 
       {/* Pillars */}
-      <section className="grid gap-6 pb-16 sm:grid-cols-3">
+      <section className="grid gap-px overflow-hidden rounded-xl border border-border bg-border my-16 sm:grid-cols-3">
         {pillars.map((pillar) => (
           <Link
             key={pillar.href}
             href={pillar.href}
-            className="group rounded-2xl border border-border bg-card p-6 transition-all hover:-translate-y-1 hover:border-accent"
+            className="group bg-card p-8 transition-colors hover:bg-card-raised"
           >
-            <span className="text-3xl">{pillar.emoji}</span>
-            <h2 className="mt-4 text-lg font-bold">{pillar.title}</h2>
+            <p className="font-mono text-xs text-subtle">{pillar.kicker}</p>
+            <h2 className="mt-3 text-lg font-semibold tracking-tight">
+              {pillar.title}
+            </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
               {pillar.description}
             </p>
-            <p className="mt-4 text-sm font-semibold text-accent-2 group-hover:underline">
-              {pillar.cta} →
+            <p className="mt-5 text-sm font-medium text-accent">
+              {pillar.cta}
+              <span className="ml-1 inline-block transition-transform group-hover:translate-x-0.5">
+                →
+              </span>
             </p>
           </Link>
         ))}
       </section>
 
       {/* Featured guides */}
-      <section className="pb-16">
+      <section className="py-8">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-2xl font-bold tracking-tight">
-            Start here: essential how-tos
+          <h2 className="text-xl font-semibold tracking-tight">
+            Essential guides
           </h2>
           <Link
             href="/guides"
-            className="text-sm font-semibold text-accent-2 hover:underline"
+            className="text-sm text-accent hover:underline"
           >
-            All guides →
+            View all →
           </Link>
         </div>
-        <div className="mt-6 grid gap-6 sm:grid-cols-3">
+        <div className="mt-6 divide-y divide-border border-y border-border">
           {featuredGuides.map((guide) => (
             <Link
               key={guide.slug}
               href={`/guides/${guide.slug}`}
-              className="group rounded-2xl border border-border bg-card p-6 transition-all hover:-translate-y-1 hover:border-accent"
+              className="group flex items-baseline justify-between gap-6 py-5"
             >
-              <div className="flex gap-2">
-                <Pill tone="cyan">{guide.category}</Pill>
-                <Pill>{guide.difficulty}</Pill>
+              <div className="min-w-0">
+                <h3 className="font-medium tracking-tight transition-colors group-hover:text-accent">
+                  {guide.title}
+                </h3>
+                <p className="mt-1 line-clamp-1 text-sm text-muted">
+                  {guide.summary}
+                </p>
               </div>
-              <h3 className="mt-4 font-bold leading-snug group-hover:text-accent-2">
-                {guide.title}
-              </h3>
-              <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted">
-                {guide.summary}
-              </p>
-              <p className="mt-4 text-xs text-subtle">
-                {guide.readingMinutes} min read
-              </p>
+              <span className="shrink-0 text-xs text-subtle">
+                {guide.category} · {guide.readingMinutes} min
+              </span>
             </Link>
           ))}
         </div>
       </section>
 
-      {/* Pulse preview */}
-      <section className="pb-16">
+      {/* Radar preview */}
+      <section className="py-8">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-2xl font-bold tracking-tight">
-            On the radar this week
+          <h2 className="text-xl font-semibold tracking-tight">
+            On the radar
           </h2>
-          <Link
-            href="/pulse"
-            className="text-sm font-semibold text-accent-2 hover:underline"
-          >
+          <Link href="/pulse" className="text-sm text-accent hover:underline">
             Full pulse →
           </Link>
         </div>
-        <div className="mt-6 grid gap-6 sm:grid-cols-3">
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
           {hotSignals.map((signal) => (
             <div
               key={signal.title}
-              className="rounded-2xl border border-border bg-card p-6"
+              className="rounded-xl border border-border bg-card p-6"
             >
-              <Pill tone={signal.momentum === "Hot" ? "pink" : "amber"}>
-                {signal.momentum === "Hot" ? "🔥 Hot" : "📈 Rising"}
+              <Pill tone={signal.momentum === "Hot" ? "critical" : "warning"}>
+                {signal.momentum}
               </Pill>
-              <h3 className="mt-4 font-bold leading-snug">{signal.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted">
+              <h3 className="mt-4 font-medium leading-snug tracking-tight">
+                {signal.title}
+              </h3>
+              <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted">
                 {signal.description}
               </p>
             </div>
@@ -161,24 +180,24 @@ export default function HomePage() {
       </section>
 
       {/* Programs teaser */}
-      <section className="mb-20 rounded-2xl border border-border bg-card p-8 sm:p-10">
+      <section className="mb-24 mt-8 rounded-xl border border-border bg-card p-8 sm:p-10">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="max-w-2xl">
-            <h2 className="text-2xl font-bold tracking-tight">
+            <h2 className="text-xl font-semibold tracking-tight">
               Don&apos;t pay full price to build
             </h2>
             <p className="mt-3 leading-relaxed text-muted">
               We track {programs.length} active credits and partnership
-              programs — from $1,000 self-serve cloud credits to
-              six-figure packages for AI startups — with eligibility notes and
-              direct application links.
+              programs — from $1,000 self-serve cloud credits to six-figure
+              packages for AI startups — with eligibility notes and direct
+              application links, each verified by hand.
             </p>
           </div>
           <Link
             href="/programs"
-            className="shrink-0 rounded-2xl bg-accent px-6 py-3 text-center font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-accent-hover hover:shadow-[0_0_30px_rgba(139,92,246,0.5)]"
+            className="shrink-0 rounded-md bg-accent-strong px-5 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-accent-hover"
           >
-            Browse programs →
+            Browse programs
           </Link>
         </div>
       </section>

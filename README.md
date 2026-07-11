@@ -37,7 +37,7 @@ app/
   about/page.tsx              Mission and how the community drives content
   api/health/route.ts         Health check (used by Railway)
   sitemap.ts, robots.ts       SEO
-components/                   Header, footer, mascot, pills/badges
+components/                   Header, footer, pills/badges
 lib/
   types.ts                    Guide / TrendSignal / Program / highlight types
   data/guides.ts              Guide content

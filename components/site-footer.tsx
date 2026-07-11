@@ -1,32 +1,76 @@
 import Link from "next/link";
 
+const siteLinks = [
+  { href: "/guides", label: "Guides" },
+  { href: "/pulse", label: "Pulse" },
+  { href: "/programs", label: "Credits & Programs" },
+  { href: "/about", label: "About" },
+];
+
+const externalLinks = [
+  { href: "https://github.com/trending", label: "GitHub Trending" },
+  { href: "https://huggingface.co/models", label: "Hugging Face Models" },
+  { href: "https://www.reddit.com/r/vibecoding/", label: "r/vibecoding" },
+];
+
 export function SiteFooter() {
   return (
-    <footer className="border-t border-border bg-card/60">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-10 text-sm text-subtle sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="font-bold text-foreground">Vibe Coding 24/7</p>
-          <p className="mt-1">
-            How-tos, trends, and builder credits for the AI coding community. ✦
-          </p>
+    <footer className="border-t border-border">
+      <div className="mx-auto max-w-6xl px-6 py-12">
+        <div className="grid gap-10 sm:grid-cols-3">
+          <div>
+            <p className="flex items-baseline gap-1.5 text-[15px] font-semibold tracking-tight">
+              Vibe Coding
+              <span className="font-mono text-sm font-medium text-accent">
+                24/7
+              </span>
+            </p>
+            <p className="mt-3 max-w-xs text-sm leading-relaxed text-subtle">
+              Guides, trends, and funding resources for AI-assisted software
+              development.
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-subtle">
+              Site
+            </p>
+            <ul className="mt-3 space-y-2 text-sm">
+              {siteLinks.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-muted transition-colors hover:text-foreground"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-subtle">
+              Community
+            </p>
+            <ul className="mt-3 space-y-2 text-sm">
+              {externalLinks.map((link) => (
+                <li key={link.href}>
+                  <a
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted transition-colors hover:text-foreground"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
-        <nav className="flex flex-wrap gap-6">
-          <Link href="/guides" className="transition-colors hover:text-accent-2">
-            Guides
-          </Link>
-          <Link href="/pulse" className="transition-colors hover:text-accent-2">
-            Pulse
-          </Link>
-          <Link
-            href="/programs"
-            className="transition-colors hover:text-accent-2"
-          >
-            Credits & Programs
-          </Link>
-          <Link href="/about" className="transition-colors hover:text-accent-2">
-            About
-          </Link>
-        </nav>
+        <p className="mt-10 border-t border-border pt-6 text-xs text-subtle">
+          © {new Date().getFullYear()} Vibe Coding 24/7. Program details change
+          — verify offers on the provider&apos;s official page.
+        </p>
       </div>
     </footer>
   );

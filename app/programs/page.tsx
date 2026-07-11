@@ -15,54 +15,56 @@ export const metadata: Metadata = {
 export default function ProgramsPage() {
   return (
     <div className="mx-auto max-w-5xl px-6 py-16">
-      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-        Credits & <span className="text-rainbow">Programs</span>
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+        Programs
+      </p>
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+        Credits &amp; partnership programs
       </h1>
       <p className="mt-4 max-w-2xl leading-relaxed text-muted">
-        You shouldn&apos;t pay full price to build. We track {programs.length}{" "}
-        active partnership and outreach programs that hand builders real
-        resources — cloud credits, model API credits, GPU grants, and student
-        perks — with plain-English eligibility notes and direct application
-        links.
+        {programs.length} active programs that hand builders real resources —
+        cloud credits, model API credits, GPU grants, and student perks — with
+        plain-English eligibility notes and direct application links.
       </p>
       <p className="mt-3 text-sm text-subtle">
-        Offers change often. Each entry shows the date we last verified it —
-        always confirm details on the official page before planning around
-        them.
+        Offers change often. Each entry shows the date we last verified it;
+        always confirm details on the official page.
       </p>
 
-      <div className="mt-12 space-y-14">
+      <div className="mt-14 space-y-14">
         {programCategories.map((category) => {
           const items = getProgramsByCategory(category);
           if (items.length === 0) return null;
           return (
             <section key={category}>
-              <h2 className="text-xl font-bold tracking-tight text-accent-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-subtle">
                 {category}
               </h2>
-              <div className="mt-5 space-y-6">
+              <div className="mt-4 space-y-4">
                 {items.map((program) => (
                   <div
                     key={program.slug}
-                    className="rounded-2xl border border-border bg-card p-6 sm:p-8"
+                    className="rounded-xl border border-border bg-card p-6 sm:p-8"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
                       <div>
-                        <h3 className="text-lg font-bold">{program.name}</h3>
-                        <p className="mt-1 text-sm text-subtle">
+                        <h3 className="text-lg font-semibold tracking-tight">
+                          {program.name}
+                        </h3>
+                        <p className="mt-0.5 text-sm text-subtle">
                           {program.provider}
                         </p>
                       </div>
-                      <Pill tone="amber">{program.offer}</Pill>
+                      <Pill tone="accent">{program.offer}</Pill>
                     </div>
 
                     <p className="mt-4 text-sm leading-relaxed text-muted">
                       {program.description}
                     </p>
 
-                    <div className="mt-5 grid gap-6 sm:grid-cols-2">
+                    <div className="mt-6 grid gap-6 border-t border-border pt-6 sm:grid-cols-2">
                       <div>
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-subtle">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-subtle">
                           Best for
                         </h4>
                         <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -70,13 +72,13 @@ export default function ProgramsPage() {
                         </p>
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-subtle">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-subtle">
                           Eligibility
                         </h4>
-                        <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-muted">
+                        <ul className="mt-2 space-y-2 text-sm leading-relaxed text-muted">
                           {program.eligibility.map((item) => (
-                            <li key={item} className="flex gap-2">
-                              <span className="text-accent-2">▸</span>
+                            <li key={item} className="flex gap-3">
+                              <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-border-strong" />
                               {item}
                             </li>
                           ))}
@@ -92,9 +94,9 @@ export default function ProgramsPage() {
                         href={program.applyUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="rounded-2xl bg-accent px-5 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-accent-hover"
+                        className="rounded-md bg-accent-strong px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
                       >
-                        Apply →
+                        Apply
                       </a>
                     </div>
                   </div>
@@ -105,16 +107,18 @@ export default function ProgramsPage() {
         })}
       </div>
 
-      <div className="mt-16 rounded-2xl border border-border bg-card p-8 text-center">
-        <h2 className="text-lg font-bold">Run a program we should list?</h2>
-        <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-muted">
+      <div className="mt-16 rounded-xl border border-border bg-card p-8">
+        <h2 className="font-semibold tracking-tight">
+          Run a program we should list?
+        </h2>
+        <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
           We&apos;re actively pursuing outreach partnerships to get the vibe
-          coding community more building credits. If you offer credits, grants,
-          or perks for builders, we&apos;d love to feature you here.
+          coding community more building credits. If you offer credits,
+          grants, or perks for builders, we&apos;d like to feature you here.
         </p>
         <a
           href="mailto:hello@vibecoding247.net?subject=Partnership%20program"
-          className="mt-5 inline-block rounded-2xl border border-border bg-background px-6 py-3 text-sm font-bold transition-all hover:border-accent-2 hover:text-accent-2"
+          className="mt-4 inline-block text-sm font-medium text-accent hover:underline"
         >
           Pitch a partnership →
         </a>
