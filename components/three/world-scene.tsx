@@ -1,25 +1,34 @@
 "use client";
 
-import { useRef } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Html, Sky, Stars } from "@react-three/drei";
 import { Group, Vector3 } from "three";
 import type { World, WorldZone } from "@/lib/data/worlds";
 import {
+  BlinkOverlay,
+  Crosshair,
+  GyroButton,
   KeyLegend,
   PlayerRig,
   TouchControls,
-  useDragYaw,
+  useGyroLook,
+  useMouseLook,
   useWorldInput,
 } from "@/components/three/player-rig";
 
 const ZONE_RADIUS = 10;
 const BOUNDS = 14;
+const NEAR_DISTANCE = 2.6;
+
+function zonePosition(index: number, total: number): [number, number] {
+  const a = (index / total) * Math.PI * 2 + Math.PI / total;
+  return [Math.cos(a) * ZONE_RADIUS, Math.sin(a) * ZONE_RADIUS];
+}
 
 /* ------------------------------------------------------------------ */
-/* Zone kiosk — the sign is real UI: app links or an open-slot CTA     */
+/* Zone kiosk — sign is informational; interaction is proximity + E    */
 /* ------------------------------------------------------------------ */
 
 function ZoneKiosk({
@@ -27,15 +36,28 @@ function ZoneKiosk({
   color,
   index,
   total,
+  playerPosRef,
+  onNearChange,
 }: {
   zone: WorldZone;
   color: string;
   index: number;
   total: number;
+  playerPosRef: React.MutableRefObject<Vector3>;
+  onNearChange: (slug: string, near: boolean) => void;
 }) {
-  const a = (index / total) * Math.PI * 2 + Math.PI / total;
-  const x = Math.cos(a) * ZONE_RADIUS;
-  const z = Math.sin(a) * ZONE_RADIUS;
+  const [x, z] = zonePosition(index, total);
+  const wasNear = useRef(false);
+
+  useFrame(() => {
+    const p = playerPosRef.current;
+    const near = Math.hypot(p.x - x, p.z - z) < NEAR_DISTANCE;
+    if (near !== wasNear.current) {
+      wasNear.current = near;
+      onNearChange(zone.slug, near);
+    }
+  });
+
   return (
     <group position={[x, 0, z]}>
       <mesh position={[0, 0.9, 0]}>
@@ -50,7 +72,8 @@ function ZoneKiosk({
       <Html
         center
         position={[0, 2.7, 0]}
-        className="select-none"
+        zIndexRange={[5, 0]}
+        className="pointer-events-none select-none"
         distanceFactor={10}
       >
         <div className="w-56 rounded-xl bg-black/80 p-4 text-center shadow-xl backdrop-blur">
@@ -62,28 +85,24 @@ function ZoneKiosk({
           </p>
           <div className="mt-3 space-y-1.5">
             {zone.apps.slice(0, 4).map((app) => (
-              <a
+              <p
                 key={app.url}
-                href={app.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block rounded-lg px-2 py-1.5 text-xs font-semibold text-white transition-colors hover:text-black"
+                className="rounded-lg px-2 py-1.5 text-xs font-semibold text-white"
                 style={{ backgroundColor: `${color}44` }}
               >
                 ▶ {app.name}
                 <span className="block text-[9px] font-normal opacity-60">
                   by {app.author}
                 </span>
-              </a>
+              </p>
             ))}
             {zone.apps.length === 0 && (
-              <Link
-                href="/submit"
-                className="block rounded-lg border border-dashed px-2 py-2 text-[11px] font-semibold text-white/70 transition-colors hover:text-white"
+              <p
+                className="rounded-lg border border-dashed px-2 py-2 text-[11px] font-semibold text-white/70"
                 style={{ borderColor: `${color}88` }}
               >
-                Open slots — submit your app, be the first here
-              </Link>
+                Open slots — be the first here
+              </p>
             )}
           </div>
         </div>
@@ -113,6 +132,7 @@ function ReturnPortal({
     const p = playerPosRef.current;
     if (Math.hypot(p.x - pos[0], p.z - pos[2]) < 1.1) {
       fired.current = true;
+      if (document.pointerLockElement) document.exitPointerLock();
       router.push("/");
     }
   });
@@ -129,7 +149,12 @@ function ReturnPortal({
         <circleGeometry args={[1.2, 32]} />
         <meshBasicMaterial color="#ffffff" transparent opacity={0.15} />
       </mesh>
-      <Html center position={[0, 3, 0]} className="pointer-events-none select-none">
+      <Html
+        center
+        position={[0, 3, 0]}
+        zIndexRange={[5, 0]}
+        className="pointer-events-none select-none"
+      >
         <p className="whitespace-nowrap rounded-full bg-white/90 px-3 py-1 text-[10px] font-bold text-slate-800 shadow">
           ← back to the Nexus
         </p>
@@ -151,12 +176,10 @@ function Environment({ world }: { world: World }) {
           <fog attach="fog" args={["#181310", 18, 42]} />
           <ambientLight intensity={0.5} />
           <pointLight position={[0, 12, 0]} intensity={160} color="#ffd9a0" />
-          {/* floor */}
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
             <circleGeometry args={[BOUNDS + 1, 64]} />
             <meshStandardMaterial color="#3f3428" roughness={0.7} />
           </mesh>
-          {/* colonnade */}
           {Array.from({ length: 10 }, (_, i) => {
             const a = (i / 10) * Math.PI * 2;
             return (
@@ -168,7 +191,6 @@ function Environment({ world }: { world: World }) {
               </group>
             );
           })}
-          {/* departure board */}
           <group position={[0, 4.6, -9]}>
             <mesh>
               <boxGeometry args={[7, 2.6, 0.3]} />
@@ -179,6 +201,7 @@ function Environment({ world }: { world: World }) {
               position={[0, 0, 0.2]}
               transform
               distanceFactor={5}
+              zIndexRange={[5, 0]}
               className="pointer-events-none select-none"
             >
               <div className="w-64 p-3 text-left font-mono">
@@ -207,12 +230,10 @@ function Environment({ world }: { world: World }) {
             <circleGeometry args={[BOUNDS + 1, 64]} />
             <meshStandardMaterial color="#3b1c2e" roughness={0.6} />
           </mesh>
-          {/* red carpet */}
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 2]}>
             <planeGeometry args={[2.4, 12]} />
             <meshStandardMaterial color="#9f1239" roughness={0.8} />
           </mesh>
-          {/* elevator doors */}
           {[-4, 0, 4].map((x) => (
             <group key={x} position={[x, 0, -11]}>
               <mesh position={[0, 1.8, 0]}>
@@ -227,7 +248,6 @@ function Environment({ world }: { world: World }) {
               </mesh>
             </group>
           ))}
-          {/* marquee bulbs */}
           {Array.from({ length: 14 }, (_, i) => {
             const a = (i / 14) * Math.PI * 2;
             return (
@@ -246,7 +266,6 @@ function Environment({ world }: { world: World }) {
           <ambientLight intensity={0.5} />
           <pointLight position={[8, 10, 4]} intensity={90} color="#c7d2fe" />
           <Stars radius={70} depth={50} count={4000} factor={4} saturation={0} fade speed={0.5} />
-          {/* floating deck */}
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
             <circleGeometry args={[BOUNDS + 1, 64]} />
             <meshStandardMaterial color="#15152b" roughness={0.5} metalness={0.4} />
@@ -255,7 +274,6 @@ function Environment({ world }: { world: World }) {
             <ringGeometry args={[BOUNDS - 0.4, BOUNDS + 0.2, 64]} />
             <meshBasicMaterial color="#818cf8" transparent opacity={0.5} />
           </mesh>
-          {/* distant planet */}
           <mesh position={[-22, 10, -30]}>
             <sphereGeometry args={[6, 32, 32]} />
             <meshStandardMaterial color="#6366f1" roughness={0.8} />
@@ -273,7 +291,6 @@ function Environment({ world }: { world: World }) {
             <circleGeometry args={[BOUNDS + 1, 64]} />
             <meshStandardMaterial color="#0b1020" roughness={0.4} metalness={0.3} />
           </mesh>
-          {/* skyline */}
           {Array.from({ length: 18 }, (_, i) => {
             const a = (i / 18) * Math.PI * 2;
             const r = 16 + (i % 3) * 3;
@@ -302,12 +319,10 @@ function Environment({ world }: { world: World }) {
             <circleGeometry args={[BOUNDS + 1, 64]} />
             <meshStandardMaterial color="#65a30d" roughness={0.85} />
           </mesh>
-          {/* great pyramid */}
           <mesh position={[0, 3.4, -16]} rotation={[0, Math.PI / 4, 0]}>
             <coneGeometry args={[7, 7, 4]} />
             <meshStandardMaterial color="#d6c193" roughness={0.9} />
           </mesh>
-          {/* colonnade arc */}
           {Array.from({ length: 7 }, (_, i) => {
             const a = Math.PI * 0.7 + (i / 7) * Math.PI * 0.6;
             return (
@@ -327,14 +342,67 @@ function Environment({ world }: { world: World }) {
 /* ------------------------------------------------------------------ */
 
 export function WorldExperience({ world }: { world: World }) {
+  const router = useRouter();
+  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useWorldInput();
   const yawRef = useRef(Math.PI);
+  const pitchRef = useRef(0);
   const playerPosRef = useRef(new Vector3(0, 0, 2));
-  const drag = useDragYaw(yawRef, Math.PI);
+  const { locked, finePointer } = useMouseLook(
+    containerRef,
+    yawRef,
+    pitchRef,
+    Math.PI,
+  );
+  const gyro = useGyroLook();
+
+  const [nearZoneSlug, setNearZoneSlug] = useState<string | null>(null);
+  const nearZone = world.zones.find((z) => z.slug === nearZoneSlug) ?? null;
+  const nearZoneRef = useRef<WorldZone | null>(null);
+  useEffect(() => {
+    nearZoneRef.current = nearZone;
+  }, [nearZone]);
+
+  const onNearChange = useCallback((slug: string, near: boolean) => {
+    setNearZoneSlug((current) => {
+      if (near) return slug;
+      return current === slug ? null : current;
+    });
+  }, []);
+
+  // Interact: fires from a real key/tap gesture so window.open isn't blocked
+  const interact = useCallback(() => {
+    const zone = nearZoneRef.current;
+    if (!zone) return;
+    const app = zone.apps[0];
+    if (app) {
+      window.open(app.url, "_blank", "noopener,noreferrer");
+    } else {
+      if (document.pointerLockElement) document.exitPointerLock();
+      router.push("/submit");
+    }
+  }, [router]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === "KeyE") {
+        e.preventDefault();
+        interact();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [interact]);
+
+  const promptLabel = nearZone
+    ? nearZone.apps[0]
+      ? `open ${nearZone.apps[0].name}`
+      : `claim the first spot in ${nearZone.name}`
+    : null;
 
   return (
-    <div className="relative h-full w-full touch-none" {...drag}>
-      <Canvas camera={{ position: [0, 3.2, 9], fov: 55 }} dpr={[1, 1.75]}>
+    <div ref={containerRef} className="relative h-full w-full touch-none">
+      <Canvas camera={{ position: [0, 1.55, 2], fov: 60 }} dpr={[1, 1.75]}>
         <Environment world={world} />
         {world.zones.map((zone, i) => (
           <ZoneKiosk
@@ -343,28 +411,55 @@ export function WorldExperience({ world }: { world: World }) {
             color={world.color}
             index={i}
             total={world.zones.length}
+            playerPosRef={playerPosRef}
+            onNearChange={onNearChange}
           />
         ))}
         <ReturnPortal playerPosRef={playerPosRef} />
         <PlayerRig
           inputRef={inputRef}
           yawRef={yawRef}
+          pitchRef={pitchRef}
+          gyroRef={gyro.gyroRef}
           playerPosRef={playerPosRef}
-          config={{
-            spawn: [0, 0, 2],
-            bounds: BOUNDS,
-            tint: world.color,
-          }}
+          config={{ spawn: [0, 0, 2], bounds: BOUNDS }}
         />
       </Canvas>
 
+      <BlinkOverlay />
+      <Crosshair visible={locked} />
+
       <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center px-4">
         <p className="rounded-2xl bg-black/60 px-5 py-2 text-center text-sm font-semibold text-white backdrop-blur">
-          {world.emblem} {world.name} — {world.tagline}
+          {finePointer && !locked
+            ? "Click anywhere to take control"
+            : `${world.emblem} ${world.name} — ${world.tagline}`}
         </p>
       </div>
-      <KeyLegend hint="walk · SPACE = jump · drag = look · signs are clickable" />
+
+      {/* interact prompt */}
+      {promptLabel && (
+        <div className="absolute inset-x-0 bottom-24 flex justify-center px-4 sm:bottom-16">
+          <button
+            onClick={interact}
+            className="rounded-2xl bg-white px-6 py-3 text-sm font-bold text-black shadow-xl transition-transform active:scale-95"
+          >
+            <span className="hidden sm:inline">
+              Press <kbd className="rounded bg-black/10 px-1.5">E</kbd> —{" "}
+            </span>
+            <span className="sm:hidden">Tap — </span>
+            {promptLabel}
+          </button>
+        </div>
+      )}
+
+      <KeyLegend hint="move · mouse = look · SPACE = jump · E = enter" />
       <TouchControls inputRef={inputRef} />
+      <GyroButton
+        supported={gyro.supported}
+        active={gyro.active}
+        onEnable={() => void gyro.request()}
+      />
     </div>
   );
 }

@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import { Group, Vector3 } from "three";
 import type { World } from "@/lib/data/worlds";
 import {
+  BlinkOverlay,
+  Crosshair,
+  GyroButton,
   KeyLegend,
   PlayerRig,
   TouchControls,
-  useDragYaw,
+  useGyroLook,
+  useMouseLook,
   useWorldInput,
 } from "@/components/three/player-rig";
 
@@ -126,6 +130,7 @@ function Pedestal({
     const p = playerPosRef.current;
     if (Math.hypot(p.x - x, p.z - z) < 1.25) {
       fired.current = true;
+      if (document.pointerLockElement) document.exitPointerLock();
       router.push(`/worlds/${world.slug}`);
     }
   });
@@ -184,26 +189,47 @@ function Room() {
 
 export function NexusExperience({ worlds }: { worlds: World[] }) {
   const [greeting, setGreeting] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useWorldInput();
   const yawRef = useRef(Math.PI);
+  const pitchRef = useRef(0);
   const playerPosRef = useRef(new Vector3(0, 0, 0));
-  const drag = useDragYaw(yawRef, Math.PI);
+  const { locked, finePointer } = useMouseLook(
+    containerRef,
+    yawRef,
+    pitchRef,
+    Math.PI,
+  );
+  const gyro = useGyroLook();
+
+  const enter = useCallback(() => {
+    setGreeting(false);
+    // both need a user gesture — this click/keypress is it
+    void gyro.request();
+    if (
+      window.matchMedia("(pointer: fine)").matches &&
+      containerRef.current &&
+      !document.pointerLockElement
+    ) {
+      containerRef.current.requestPointerLock();
+    }
+  }, [gyro]);
 
   useEffect(() => {
     if (!greeting) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Enter" || e.code === "Space") {
         e.preventDefault();
-        setGreeting(false);
+        enter();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [greeting]);
+  }, [greeting, enter]);
 
   return (
-    <div className="relative h-full w-full touch-none" {...drag}>
-      <Canvas camera={{ position: [0, 3.2, -7], fov: 55 }} dpr={[1, 1.75]}>
+    <div ref={containerRef} className="relative h-full w-full touch-none">
+      <Canvas camera={{ position: [0, 1.55, 0], fov: 60 }} dpr={[1, 1.75]}>
         <color attach="background" args={["#09090b"]} />
         <fog attach="fog" args={["#09090b", 10, 22]} />
         <ambientLight intensity={0.35} />
@@ -221,20 +247,31 @@ export function NexusExperience({ worlds }: { worlds: World[] }) {
         <PlayerRig
           inputRef={inputRef}
           yawRef={yawRef}
+          pitchRef={pitchRef}
+          gyroRef={gyro.gyroRef}
           playerPosRef={playerPosRef}
-          config={{ spawn: [0, 0, 0], bounds: 8.9, camDist: 6.5, camHeight: 3 }}
+          config={{ spawn: [0, 0, 0], bounds: 8.9 }}
         />
       </Canvas>
 
       {!greeting && (
         <>
+          <BlinkOverlay />
+          <Crosshair visible={locked} />
           <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center px-4">
             <p className="rounded-2xl bg-white/10 px-5 py-2 text-center text-sm font-medium text-white/80 backdrop-blur">
-              Five little things on five little pedestals. Step up to one.
+              {finePointer && !locked
+                ? "Click anywhere to take control"
+                : "Five little things on five little pedestals. Walk up to one."}
             </p>
           </div>
           <KeyLegend />
           <TouchControls inputRef={inputRef} />
+          <GyroButton
+            supported={gyro.supported}
+            active={gyro.active}
+            onEnable={() => void gyro.request()}
+          />
         </>
       )}
 
@@ -250,13 +287,13 @@ export function NexusExperience({ worlds }: { worlds: World[] }) {
             worlds, all built by people like you.
           </p>
           <button
-            onClick={() => setGreeting(false)}
+            onClick={enter}
             className="mt-8 rounded-xl bg-white px-8 py-3 text-sm font-bold text-black transition-transform hover:scale-105"
           >
             Enter ⏎
           </button>
           <p className="mt-3 text-xs text-white/40">
-            or press Enter · W A S D to walk once inside
+            W A S D to walk · move the mouse (or your phone) to look
           </p>
         </div>
       )}
