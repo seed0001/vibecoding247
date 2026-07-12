@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { CanvasBoundary } from "@/components/three/canvas-boundary";
 import type { WorldLesson } from "./first-steps-playground";
 
 const FirstStepsPlayground = dynamic(
@@ -16,5 +17,9 @@ const FirstStepsPlayground = dynamic(
 );
 
 export function FirstStepsCanvas({ lessons }: { lessons: WorldLesson[] }) {
-  return <FirstStepsPlayground lessons={lessons} />;
+  return (
+    <CanvasBoundary>
+      <FirstStepsPlayground lessons={lessons} />
+    </CanvasBoundary>
+  );
 }

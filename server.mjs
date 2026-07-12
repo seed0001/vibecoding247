@@ -14,7 +14,9 @@ import { join } from "path";
 import next from "next";
 import { WebSocketServer } from "ws";
 
-const dev = process.env.NODE_ENV !== "production";
+// Production unless explicitly developing — a missing NODE_ENV on the
+// host must never boot the dev compiler in a deployed container.
+const dev = process.env.NODE_ENV === "development";
 const port = Number(process.env.PORT || 3000);
 const app = next({ dev });
 const handle = app.getRequestHandler();
@@ -232,7 +234,7 @@ app.prepare().then(() => {
 
   server.listen(port, () => {
     console.log(
-      `vibecoding247 ready on :${port} (presence: /ws, ${dev ? "dev" : "prod"})`,
+      `vibecoding247 ready on :${port} (presence: /ws, mode: ${dev ? "dev" : "prod"}, NODE_ENV: ${process.env.NODE_ENV ?? "unset"})`,
     );
   });
 });
