@@ -4,10 +4,25 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
+  useSyncExternalStore,
   type MutableRefObject,
 } from "react";
+
+/** Reactive media-query without setState-in-effect. */
+function useMediaQuery(query: string): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia(query);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
+}
 import { useFrame, useThree } from "@react-three/fiber";
-import { Group, MathUtils, Vector3 } from "three";
+import { Euler, MathUtils, Quaternion, Vector3 } from "three";
 
 /* ------------------------------------------------------------------ */
 /* Input                                                               */
@@ -21,8 +36,9 @@ export interface InputState {
   jump: boolean;
   /** Set on keydown, consumed by the physics frame — quick taps always land. */
   jumpQueued: boolean;
-  /** Set on E/Enter keydown, consumed by whoever is showing a prompt. */
-  interactQueued: boolean;
+  /** Analog move vector from the touch joystick, each in [-1, 1]. */
+  analogX: number;
+  analogZ: number;
 }
 
 export function useWorldInput(): MutableRefObject<InputState> {
@@ -33,7 +49,8 @@ export function useWorldInput(): MutableRefObject<InputState> {
     right: false,
     jump: false,
     jumpQueued: false,
-    interactQueued: false,
+    analogX: 0,
+    analogZ: 0,
   });
 
   useEffect(() => {
@@ -60,9 +77,6 @@ export function useWorldInput(): MutableRefObject<InputState> {
           input.jump = down;
           if (down) input.jumpQueued = true;
           return true;
-        case "KeyE":
-          if (down) input.interactQueued = true;
-          return true;
         default:
           return false;
       }
@@ -84,40 +98,201 @@ export function useWorldInput(): MutableRefObject<InputState> {
   return inputRef;
 }
 
-export function useDragYaw(yawRef: MutableRefObject<number>, initial = 0) {
-  const dragging = useRef(false);
-  const lastX = useRef(0);
+/* ------------------------------------------------------------------ */
+/* Look: pointer-lock mouse on desktop, drag fallback on touch         */
+/* ------------------------------------------------------------------ */
+
+const PITCH_LIMIT = 1.35;
+
+export function useMouseLook(
+  containerRef: MutableRefObject<HTMLDivElement | null>,
+  yawRef: MutableRefObject<number>,
+  pitchRef: MutableRefObject<number>,
+  initialYaw: number,
+) {
+  const [locked, setLocked] = useState(false);
+  const finePointer = useMediaQuery("(pointer: fine)");
+  const touchId = useRef<number | null>(null);
+  const lastTouch = useRef<[number, number]>([0, 0]);
+
   useEffect(() => {
-    yawRef.current = initial;
+    yawRef.current = initialYaw;
+    pitchRef.current = 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
-    dragging.current = true;
-    lastX.current = e.clientX;
-  }, []);
-  const onPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!dragging.current) return;
-      const dx = e.clientX - lastX.current;
-      lastX.current = e.clientX;
-      yawRef.current -= dx * 0.006;
-    },
-    [yawRef],
-  );
-  const stop = useCallback(() => {
-    dragging.current = false;
-  }, []);
-  return {
-    onPointerDown,
-    onPointerMove,
-    onPointerUp: stop,
-    onPointerLeave: stop,
-  };
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onLockChange = () =>
+      setLocked(document.pointerLockElement === el);
+    const onMouseMove = (e: MouseEvent) => {
+      if (document.pointerLockElement !== el) return;
+      yawRef.current -= e.movementX * 0.0024;
+      pitchRef.current = MathUtils.clamp(
+        pitchRef.current - e.movementY * 0.0024,
+        -PITCH_LIMIT,
+        PITCH_LIMIT,
+      );
+    };
+    const onClick = (e: MouseEvent) => {
+      // don't steal the pointer when clicking real UI (signs, buttons)
+      const target = e.target as HTMLElement;
+      if (target.closest("a,button")) return;
+      if (
+        window.matchMedia("(pointer: fine)").matches &&
+        document.pointerLockElement !== el
+      ) {
+        el.requestPointerLock();
+      }
+    };
+
+    // touch drag-look fallback (used when gyro is off/denied)
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType !== "touch") return;
+      const target = e.target as HTMLElement;
+      if (target.closest("a,button,[data-joystick]")) return;
+      if (touchId.current === null) {
+        touchId.current = e.pointerId;
+        lastTouch.current = [e.clientX, e.clientY];
+      }
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerId !== touchId.current) return;
+      const [lx, ly] = lastTouch.current;
+      lastTouch.current = [e.clientX, e.clientY];
+      yawRef.current -= (e.clientX - lx) * 0.005;
+      pitchRef.current = MathUtils.clamp(
+        pitchRef.current - (e.clientY - ly) * 0.005,
+        -PITCH_LIMIT,
+        PITCH_LIMIT,
+      );
+    };
+    const onPointerEnd = (e: PointerEvent) => {
+      if (e.pointerId === touchId.current) touchId.current = null;
+    };
+
+    document.addEventListener("pointerlockchange", onLockChange);
+    document.addEventListener("mousemove", onMouseMove);
+    el.addEventListener("click", onClick);
+    el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerup", onPointerEnd);
+    el.addEventListener("pointercancel", onPointerEnd);
+    return () => {
+      document.removeEventListener("pointerlockchange", onLockChange);
+      document.removeEventListener("mousemove", onMouseMove);
+      el.removeEventListener("click", onClick);
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", onPointerEnd);
+      el.removeEventListener("pointercancel", onPointerEnd);
+    };
+  }, [containerRef, yawRef, pitchRef]);
+
+  return { locked, finePointer };
 }
 
 /* ------------------------------------------------------------------ */
-/* Player                                                              */
+/* Gyro look — move the phone to look around (AR-style)                */
 /* ------------------------------------------------------------------ */
+
+export interface GyroData {
+  active: boolean;
+  hasData: boolean;
+  alpha: number;
+  beta: number;
+  gamma: number;
+  orient: number;
+}
+
+export function useGyroLook() {
+  const gyroRef = useRef<GyroData>({
+    active: false,
+    hasData: false,
+    alpha: 0,
+    beta: 0,
+    gamma: 0,
+    orient: 0,
+  });
+  const [active, setActive] = useState(false);
+  const coarsePointer = useMediaQuery("(pointer: coarse)");
+  const supported =
+    coarsePointer &&
+    typeof window !== "undefined" &&
+    "DeviceOrientationEvent" in window;
+  const detach = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => detach.current?.();
+  }, []);
+
+  const request = useCallback(async () => {
+    if (gyroRef.current.active || !("DeviceOrientationEvent" in window)) {
+      return;
+    }
+    try {
+      const D = DeviceOrientationEvent as unknown as {
+        requestPermission?: () => Promise<string>;
+      };
+      if (typeof D.requestPermission === "function") {
+        const result = await D.requestPermission();
+        if (result !== "granted") return;
+      }
+      const onOrient = (e: DeviceOrientationEvent) => {
+        if (e.alpha === null) return;
+        const g = gyroRef.current;
+        g.alpha = e.alpha;
+        g.beta = e.beta ?? 0;
+        g.gamma = e.gamma ?? 0;
+        g.orient = window.screen.orientation?.angle ?? 0;
+        g.hasData = true;
+      };
+      window.addEventListener("deviceorientation", onOrient);
+      detach.current = () =>
+        window.removeEventListener("deviceorientation", onOrient);
+      gyroRef.current.active = true;
+      setActive(true);
+    } catch {
+      /* permission denied — drag-look fallback stays available */
+    }
+  }, []);
+
+  return { gyroRef, active, supported, request };
+}
+
+/* Device orientation → camera quaternion (three.js DeviceOrientationControls math) */
+const zee = new Vector3(0, 0, 1);
+const worldY = new Vector3(0, 1, 0);
+const tmpEuler = new Euler();
+const q0 = new Quaternion();
+const qScreen = new Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
+const tmpFwd = new Vector3();
+const qYawFix = new Quaternion();
+
+function deviceQuaternion(out: Quaternion, g: GyroData) {
+  const alpha = MathUtils.degToRad(g.alpha);
+  const beta = MathUtils.degToRad(g.beta);
+  const gamma = MathUtils.degToRad(g.gamma);
+  const orient = MathUtils.degToRad(g.orient);
+  tmpEuler.set(beta, alpha, -gamma, "YXZ");
+  out.setFromEuler(tmpEuler);
+  out.multiply(qScreen);
+  out.multiply(q0.setFromAxisAngle(zee, -orient));
+  return out;
+}
+
+function yawOf(q: Quaternion): number {
+  tmpFwd.set(0, 0, -1).applyQuaternion(q);
+  return Math.atan2(-tmpFwd.x, -tmpFwd.z);
+}
+
+/* ------------------------------------------------------------------ */
+/* First-person player                                                 */
+/* ------------------------------------------------------------------ */
+
+const EYE_HEIGHT = 1.55;
 
 export interface RigConfig {
   spawn: [number, number, number];
@@ -125,29 +300,29 @@ export interface RigConfig {
   bounds: number;
   /** Extra raised surfaces: axis-aligned square platforms. */
   platforms?: { x: number; z: number; top: number; size: number }[];
-  /** Follow-camera distance/height. */
-  camDist?: number;
-  camHeight?: number;
   speed?: number;
-  /** Robot accent color so each world can tint the visitor. */
-  tint?: string;
 }
 
 export function PlayerRig({
   inputRef,
   yawRef,
+  pitchRef,
+  gyroRef,
   playerPosRef,
   config,
 }: {
   inputRef: MutableRefObject<InputState>;
   yawRef: MutableRefObject<number>;
+  pitchRef: MutableRefObject<number>;
+  gyroRef?: MutableRefObject<GyroData>;
   playerPosRef: MutableRefObject<Vector3>;
   config: RigConfig;
 }) {
-  const group = useRef<Group>(null);
+  const posRef = useRef(new Vector3(...config.spawn));
   const velY = useRef(0);
   const grounded = useRef(true);
-  const heading = useRef(0);
+  const gyroQuat = useRef(new Quaternion());
+  const gyroPhi = useRef<number | null>(null);
   const { camera } = useThree();
 
   const support = useCallback(
@@ -164,31 +339,44 @@ export function PlayerRig({
     [config],
   );
 
-  useFrame((state, rawDelta) => {
+  useFrame((_, rawDelta) => {
     const dt = Math.min(rawDelta, 0.05);
-    if (!group.current) return;
-    const pos = group.current.position;
+    const pos = posRef.current;
     const inp = inputRef.current;
 
-    let mx = 0;
-    let mz = 0;
-    if (inp.forward) mz -= 1;
-    if (inp.back) mz += 1;
-    if (inp.left) mx -= 1;
-    if (inp.right) mx += 1;
-    const moving = mx !== 0 || mz !== 0;
-    if (moving) {
-      const len = Math.hypot(mx, mz);
-      const speed = config.speed ?? 5.2;
-      const sin = Math.sin(yawRef.current);
-      const cos = Math.cos(yawRef.current);
-      const wx = (mx * cos - mz * sin) / len;
-      const wz = (mx * sin + mz * cos) / len;
-      pos.x += wx * speed * dt;
-      pos.z += wz * speed * dt;
-      heading.current = Math.atan2(wx, wz);
+    // ---- look ----
+    const g = gyroRef?.current;
+    if (g?.active && g.hasData) {
+      deviceQuaternion(gyroQuat.current, g);
+      if (gyroPhi.current === null) {
+        // calibrate so your current facing is preserved when gyro kicks in
+        gyroPhi.current = yawRef.current - yawOf(gyroQuat.current);
+      }
+      qYawFix.setFromAxisAngle(worldY, gyroPhi.current);
+      camera.quaternion.copy(qYawFix).multiply(gyroQuat.current);
+      yawRef.current = yawOf(camera.quaternion);
+    } else {
+      camera.rotation.set(pitchRef.current, yawRef.current, 0, "YXZ");
     }
 
+    // ---- move (camera-relative) ----
+    let mx = (inp.left ? -1 : 0) + (inp.right ? 1 : 0) + inp.analogX;
+    let mz = (inp.forward ? -1 : 0) + (inp.back ? 1 : 0) + inp.analogZ;
+    const len = Math.hypot(mx, mz);
+    if (len > 1) {
+      mx /= len;
+      mz /= len;
+    }
+    if (len > 0.01) {
+      const speed = config.speed ?? 5.2;
+      const theta = yawRef.current;
+      const sin = Math.sin(theta);
+      const cos = Math.cos(theta);
+      pos.x += (mx * cos + mz * sin) * speed * dt;
+      pos.z += (mz * cos - mx * sin) * speed * dt;
+    }
+
+    // ---- jump + gravity ----
     if ((inp.jump || inp.jumpQueued) && grounded.current) {
       velY.current = 7.6;
       grounded.current = false;
@@ -205,89 +393,62 @@ export function PlayerRig({
     } else if (pos.y > h) {
       grounded.current = false;
     }
-
     if (pos.y < -14) {
       pos.set(...config.spawn);
       velY.current = 0;
     }
 
-    group.current.rotation.y = MathUtils.lerp(
-      group.current.rotation.y,
-      heading.current,
-      Math.min(dt * 10, 1),
-    );
-    const bob =
-      moving && grounded.current
-        ? Math.sin(state.clock.elapsedTime * 12) * 0.06
-        : 0;
-    group.current.children[0].position.y = 1.05 + bob;
-
     playerPosRef.current.copy(pos);
-
-    const dist = config.camDist ?? 7;
-    const height = config.camHeight ?? 3.2;
-    const cx = pos.x + Math.sin(yawRef.current) * dist;
-    const cz = pos.z + Math.cos(yawRef.current) * dist;
-    camera.position.lerp(
-      new Vector3(cx, pos.y + height, cz),
-      Math.min(dt * 5, 1),
-    );
-    camera.lookAt(pos.x, pos.y + 1.2, pos.z);
+    camera.position.set(pos.x, pos.y + EYE_HEIGHT, pos.z);
   });
 
-  const tint = config.tint ?? "#6366f1";
-
-  return (
-    <group ref={group} position={config.spawn}>
-      <group position={[0, 1.05, 0]}>
-        <mesh position={[0, -0.45, 0]}>
-          <boxGeometry args={[0.55, 0.5, 0.4]} />
-          <meshStandardMaterial color={tint} roughness={0.4} />
-        </mesh>
-        <mesh position={[0, 0.1, 0]}>
-          <boxGeometry args={[0.7, 0.55, 0.55]} />
-          <meshStandardMaterial color="#c7d2fe" roughness={0.4} />
-        </mesh>
-        <mesh position={[-0.16, 0.13, 0.29]}>
-          <sphereGeometry args={[0.09, 16, 16]} />
-          <meshBasicMaterial color="#0ea5e9" />
-        </mesh>
-        <mesh position={[0.16, 0.13, 0.29]}>
-          <sphereGeometry args={[0.09, 16, 16]} />
-          <meshBasicMaterial color="#0ea5e9" />
-        </mesh>
-        <mesh position={[0, 0.5, 0]}>
-          <cylinderGeometry args={[0.025, 0.025, 0.3, 8]} />
-          <meshStandardMaterial color={tint} />
-        </mesh>
-        <mesh position={[0, 0.7, 0]}>
-          <sphereGeometry args={[0.07, 16, 16]} />
-          <meshBasicMaterial color="#f59e0b" />
-        </mesh>
-      </group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-        <circleGeometry args={[0.5, 24]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.18} />
-      </mesh>
-    </group>
-  );
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
-/* Touch controls (shared HUD)                                         */
+/* HUD pieces                                                          */
 /* ------------------------------------------------------------------ */
 
+/** Left-thumb virtual joystick + right-thumb jump (touch only). */
 export function TouchControls({
   inputRef,
 }: {
   inputRef: MutableRefObject<InputState>;
 }) {
-  const handlePress = useCallback(
-    (key: "forward" | "back" | "left" | "right", down: boolean) => {
-      inputRef.current[key] = down;
+  const [knob, setKnob] = useState<{ x: number; y: number } | null>(null);
+  const originRef = useRef<{ x: number; y: number } | null>(null);
+  const RADIUS = 52;
+
+  const onDown = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    originRef.current = { x: e.clientX, y: e.clientY };
+    setKnob({ x: 0, y: 0 });
+  }, []);
+  const onMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!originRef.current) return;
+      e.stopPropagation();
+      let dx = e.clientX - originRef.current.x;
+      let dy = e.clientY - originRef.current.y;
+      const d = Math.hypot(dx, dy);
+      if (d > RADIUS) {
+        dx = (dx / d) * RADIUS;
+        dy = (dy / d) * RADIUS;
+      }
+      inputRef.current.analogX = dx / RADIUS;
+      inputRef.current.analogZ = dy / RADIUS;
+      setKnob({ x: dx, y: dy });
     },
     [inputRef],
   );
+  const onEnd = useCallback(() => {
+    originRef.current = null;
+    inputRef.current.analogX = 0;
+    inputRef.current.analogZ = 0;
+    setKnob(null);
+  }, [inputRef]);
+
   const handleJump = useCallback(
     (down: boolean) => {
       inputRef.current.jump = down;
@@ -295,33 +456,34 @@ export function TouchControls({
     },
     [inputRef],
   );
-  const btn =
-    "h-12 w-12 rounded-xl bg-white/85 text-lg font-black text-slate-800 shadow active:bg-amber-200";
+
   return (
     <>
-      <div className="absolute bottom-4 left-4 flex select-none flex-col items-center gap-1 sm:hidden">
-        <button aria-label="Walk forward" className={btn}
-          onPointerDown={() => handlePress("forward", true)}
-          onPointerUp={() => handlePress("forward", false)}
-          onPointerLeave={() => handlePress("forward", false)}>↑</button>
-        <div className="flex gap-1">
-          <button aria-label="Walk left" className={btn}
-            onPointerDown={() => handlePress("left", true)}
-            onPointerUp={() => handlePress("left", false)}
-            onPointerLeave={() => handlePress("left", false)}>←</button>
-          <button aria-label="Walk back" className={btn}
-            onPointerDown={() => handlePress("back", true)}
-            onPointerUp={() => handlePress("back", false)}
-            onPointerLeave={() => handlePress("back", false)}>↓</button>
-          <button aria-label="Walk right" className={btn}
-            onPointerDown={() => handlePress("right", true)}
-            onPointerUp={() => handlePress("right", false)}
-            onPointerLeave={() => handlePress("right", false)}>→</button>
-        </div>
+      {/* left-thumb joystick */}
+      <div
+        data-joystick
+        className="absolute bottom-6 left-6 h-32 w-32 touch-none select-none rounded-full border-2 border-white/25 bg-white/10 backdrop-blur-sm sm:hidden"
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onEnd}
+        onPointerCancel={onEnd}
+      >
+        <div
+          className="absolute left-1/2 top-1/2 h-14 w-14 rounded-full bg-white/70 shadow-lg"
+          style={{
+            transform: `translate(calc(-50% + ${knob?.x ?? 0}px), calc(-50% + ${knob?.y ?? 0}px))`,
+          }}
+        />
+        {!knob && (
+          <p className="absolute inset-x-0 top-full mt-1.5 text-center text-[10px] font-bold text-white/60">
+            walk
+          </p>
+        )}
       </div>
+      {/* right-thumb jump */}
       <button
         aria-label="Jump"
-        className="absolute bottom-6 right-4 h-16 w-16 select-none rounded-full bg-emerald-400/90 text-sm font-black text-white shadow-lg active:bg-emerald-500 sm:hidden"
+        className="absolute bottom-8 right-6 h-16 w-16 select-none rounded-full bg-white/20 text-xs font-black text-white backdrop-blur-sm active:bg-white/40 sm:hidden"
         onPointerDown={() => handleJump(true)}
         onPointerUp={() => handleJump(false)}
         onPointerLeave={() => handleJump(false)}
@@ -329,6 +491,105 @@ export function TouchControls({
         JUMP
       </button>
     </>
+  );
+}
+
+/** Small centered dot shown while the pointer is locked. */
+export function Crosshair({ visible }: { visible: boolean }) {
+  if (!visible) return null;
+  return (
+    <div className="pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 shadow-[0_0_6px_rgba(0,0,0,0.6)]" />
+  );
+}
+
+/** "Move your phone to look" opt-in, shown on touch devices until enabled. */
+export function GyroButton({
+  supported,
+  active,
+  onEnable,
+}: {
+  supported: boolean;
+  active: boolean;
+  onEnable: () => void;
+}) {
+  if (!supported || active) return null;
+  return (
+    <button
+      onClick={onEnable}
+      className="absolute right-4 top-4 rounded-full bg-white/15 px-4 py-2 text-xs font-bold text-white backdrop-blur transition-colors active:bg-white/30 sm:hidden"
+    >
+      📱 Move phone to look
+    </button>
+  );
+}
+
+/**
+ * Eyelid blink — you're not watching an avatar, you ARE the avatar.
+ * Opens like waking up on mount, then blinks occasionally.
+ */
+export function BlinkOverlay() {
+  const [closed, setClosed] = useState(true);
+
+  useEffect(() => {
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(() => setClosed(false), 450));
+    if (!reduced) {
+      let cancelled = false;
+      const loop = () => {
+        timers.push(
+          setTimeout(
+            () => {
+              if (cancelled) return;
+              setClosed(true);
+              timers.push(
+                setTimeout(() => {
+                  if (cancelled) return;
+                  setClosed(false);
+                  loop();
+                }, 170),
+              );
+            },
+            7000 + Math.random() * 8000,
+          ),
+        );
+      };
+      loop();
+      return () => {
+        cancelled = true;
+        timers.forEach(clearTimeout);
+      };
+    }
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+      style={{ zIndex: 17000000 }}
+      aria-hidden
+    >
+      <div
+        className="absolute -left-[10%] h-[55%] w-[120%] bg-black transition-transform duration-200 ease-in-out"
+        style={{
+          top: 0,
+          borderBottomLeftRadius: "50% 30%",
+          borderBottomRightRadius: "50% 30%",
+          transform: closed ? "translateY(0)" : "translateY(-101%)",
+        }}
+      />
+      <div
+        className="absolute -left-[10%] h-[55%] w-[120%] bg-black transition-transform duration-200 ease-in-out"
+        style={{
+          bottom: 0,
+          borderTopLeftRadius: "50% 30%",
+          borderTopRightRadius: "50% 30%",
+          transform: closed ? "translateY(0)" : "translateY(101%)",
+        }}
+      />
+    </div>
   );
 }
 
@@ -344,8 +605,8 @@ export function KeyLegend({ hint }: { hint?: string }) {
           <kbd className={kbd}>S</kbd>
           <kbd className={kbd}>D</kbd>
         </div>
-        <p className="mt-1 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-          {hint ?? "walk · SPACE = jump · drag = look"}
+        <p className="mt-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white/80">
+          {hint ?? "move · mouse = look · SPACE = jump · ESC = cursor"}
         </p>
       </div>
     </div>
