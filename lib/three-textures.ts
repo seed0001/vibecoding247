@@ -166,3 +166,34 @@ export function makeCloudTexture(tint = "#ffffff"): CanvasTexture {
   t.colorSpace = SRGBColorSpace;
   return t;
 }
+
+/** Wispy nebula puff — additive-blended far-background galaxy clouds. */
+export function makeNebulaTexture(tint: string): CanvasTexture {
+  const S = 256;
+  const c = makeCanvas(S, S);
+  const ctx = c.getContext("2d")!;
+  const rand = mulberry32(tint.length * 7919 + 13);
+  for (let i = 0; i < 34; i++) {
+    ctx.save();
+    ctx.translate(
+      S / 2 + (rand() - 0.5) * S * 0.5,
+      S / 2 + (rand() - 0.5) * S * 0.5,
+    );
+    ctx.rotate(rand() * Math.PI);
+    ctx.scale(1 + rand() * 1.6, 0.45 + rand() * 0.6);
+    const r = 14 + rand() * 40;
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+    const core = rand() > 0.75 ? "#ffffff" : tint;
+    g.addColorStop(0, `${core}30`);
+    g.addColorStop(0.5, `${tint}18`);
+    g.addColorStop(1, `${tint}00`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  return t;
+}

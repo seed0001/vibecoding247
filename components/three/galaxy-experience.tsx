@@ -11,7 +11,15 @@ import {
 import { useRouter } from "next/navigation";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Html, Stars } from "@react-three/drei";
-import { DoubleSide, Group, MathUtils, Vector3 } from "three";
+import {
+  AdditiveBlending,
+  BufferGeometry,
+  DoubleSide,
+  Float32BufferAttribute,
+  Group,
+  MathUtils,
+  Vector3,
+} from "three";
 import {
   canAfford,
   FLAG_COST,
@@ -26,7 +34,8 @@ import {
   type PlantedFlag,
   type ResourceBag,
 } from "@/lib/galaxy";
-import { makeCloudTexture } from "@/lib/three-textures";
+import { makeCloudTexture, makeNebulaTexture } from "@/lib/three-textures";
+import { getPlanetGeometry } from "@/lib/planet-geometry";
 import { AccountPanel } from "@/components/multiplayer/account-panel";
 import { ChatOverlay } from "@/components/multiplayer/chat-overlay";
 import { PeerOrbs } from "@/components/multiplayer/peer-orbs";
@@ -239,12 +248,99 @@ function FlightRig({
 /* Planets                                                             */
 /* ------------------------------------------------------------------ */
 
-function PlanetMesh({ planet, detail = false }: { planet: Planet; detail?: boolean }) {
+/* ------------------------------------------------------------------ */
+/* Galaxy backdrop: nebula clouds + star clusters, purples and blues    */
+/* ------------------------------------------------------------------ */
+
+const NEBULA_COLORS = ["#7c3aed", "#3b82f6", "#a855f7", "#22d3ee", "#ec4899"];
+
+function NebulaBackdrop() {
+  const textures = useMemo(
+    () => NEBULA_COLORS.map((color) => makeNebulaTexture(color)),
+    [],
+  );
+
+  const sprites = useMemo(() => {
+    const rand = mulberry32(4242);
+    return Array.from({ length: 15 }, () => {
+      const a = rand() * Math.PI * 2;
+      const r = 550 + rand() * 320;
+      return {
+        pos: [
+          Math.cos(a) * r,
+          (rand() - 0.5) * 520,
+          Math.sin(a) * r,
+        ] as [number, number, number],
+        scale: 200 + rand() * 240,
+        tex: Math.floor(rand() * NEBULA_COLORS.length),
+        opacity: 0.09 + rand() * 0.1,
+        rotation: rand() * Math.PI * 2,
+      };
+    });
+  }, []);
+
+  const clusters = useMemo(() => {
+    const rand = mulberry32(777);
+    return Array.from({ length: 6 }, () => {
+      const a = rand() * Math.PI * 2;
+      const r = 500 + rand() * 350;
+      const cx = Math.cos(a) * r;
+      const cy = (rand() - 0.5) * 420;
+      const cz = Math.sin(a) * r;
+      const spread = 30 + rand() * 45;
+      const positions: number[] = [];
+      for (let i = 0; i < 130; i++) {
+        // rough gaussian clump
+        const g = () => (rand() + rand() + rand() - 1.5) * spread;
+        positions.push(cx + g(), cy + g(), cz + g());
+      }
+      const geo = new BufferGeometry();
+      geo.setAttribute("position", new Float32BufferAttribute(positions, 3));
+      return {
+        geo,
+        color: rand() > 0.5 ? "#bfdbfe" : "#e9d5ff",
+        size: 2.4 + rand() * 1.6,
+      };
+    });
+  }, []);
+
+  return (
+    <group>
+      {sprites.map((n, i) => (
+        <sprite key={i} position={n.pos} scale={[n.scale, n.scale, 1]}>
+          <spriteMaterial
+            map={textures[n.tex]}
+            transparent
+            opacity={n.opacity}
+            rotation={n.rotation}
+            blending={AdditiveBlending}
+            depthWrite={false}
+          />
+        </sprite>
+      ))}
+      {clusters.map((cluster, i) => (
+        <points key={i} geometry={cluster.geo}>
+          <pointsMaterial
+            color={cluster.color}
+            size={cluster.size}
+            sizeAttenuation
+            transparent
+            opacity={0.85}
+            blending={AdditiveBlending}
+            depthWrite={false}
+          />
+        </points>
+      ))}
+    </group>
+  );
+}
+
+function PlanetMesh({ planet }: { planet: Planet }) {
+  const terrain = useMemo(() => getPlanetGeometry(planet), [planet]);
   return (
     <group position={planet.position}>
-      <mesh>
-        <sphereGeometry args={[planet.radius, detail ? 48 : 24, detail ? 32 : 16]} />
-        <meshStandardMaterial color={planet.color} roughness={0.85} />
+      <mesh geometry={terrain}>
+        <meshStandardMaterial vertexColors flatShading roughness={0.9} />
       </mesh>
       {/* atmosphere */}
       <mesh>
@@ -331,6 +427,41 @@ function SurfaceScatter({ planet }: { planet: Planet }) {
       )}
     </>
   );
+}
+
+function HorizonRidge({ planet }: { planet: Planet }) {
+  const peaks = useMemo(() => {
+    const rand = mulberry32(hashPlanet(planet));
+    return Array.from({ length: 26 }, (_, i) => {
+      const a = (i / 26) * Math.PI * 2 + rand() * 0.2;
+      const r = SURFACE_BOUNDS + 10 + rand() * 22;
+      return {
+        x: Math.cos(a) * r,
+        z: Math.sin(a) * r,
+        h: 6 + rand() * 16,
+        w: 6 + rand() * 10,
+        rot: rand() * Math.PI,
+      };
+    });
+  }, [planet]);
+  return (
+    <>
+      {peaks.map((peak, i) => (
+        <mesh
+          key={i}
+          position={[peak.x, peak.h * 0.38, peak.z]}
+          rotation={[0, peak.rot, 0]}
+        >
+          <coneGeometry args={[peak.w, peak.h, 5]} />
+          <meshStandardMaterial color={planet.rockColor} roughness={0.95} flatShading />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
+function hashPlanet(planet: Planet): number {
+  return planet.id.length * 1000 + Math.round(planet.radius * 97);
 }
 
 function FlagMesh({ flag, color }: { flag: PlantedFlag; color: string }) {
@@ -588,6 +719,7 @@ export function GalaxyExperience() {
               <meshStandardMaterial color={phase.planet.groundColor} roughness={0.95} />
             </mesh>
             <SurfaceScatter planet={phase.planet} />
+            <HorizonRidge planet={phase.planet} />
             <group position={[SHIP_SPOT[0], 1.05, SHIP_SPOT[1]]}>
               <ShipModel landed />
             </group>
@@ -610,6 +742,7 @@ export function GalaxyExperience() {
             <ambientLight intensity={0.55} />
             <directionalLight position={[100, 60, 40]} intensity={2.4} />
             <Stars radius={800} depth={400} count={6000} factor={12} saturation={0} fade speed={0.3} />
+            <NebulaBackdrop />
             {UNIVERSE.map((planet) => (
               <PlanetMesh key={planet.id} planet={planet} />
             ))}
@@ -629,6 +762,7 @@ export function GalaxyExperience() {
             <ambientLight intensity={0.5} />
             <pointLight position={[8, 10, 4]} intensity={90} color="#c7d2fe" />
             <Stars radius={70} depth={50} count={4000} factor={4} saturation={0} fade speed={0.5} />
+            <NebulaBackdrop />
             <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
               <circleGeometry args={[DECK_BOUNDS + 1, 64]} />
               <meshStandardMaterial color="#15152b" roughness={0.5} metalness={0.4} />
