@@ -122,7 +122,10 @@ export const firstStepsLessons: FirstStepsLesson[] = [
         heading: "The safety rules",
         paragraphs: [
           "AI chats feel friendly, but remember: it's a computer program, not a person who knows you. So follow these rules every time:",
-          "1. Never tell an AI your full name, address, school, phone number, or passwords. 2. If an AI says something weird, mean, or confusing, stop and show a grown-up. 3. Don't believe everything an AI says — check important things with a person or a book. 4. AI is for helping you think, not thinking instead of you. Your homework should still have YOUR ideas in it.",
+          "Rule 1: Never tell an AI your full name, address, school, phone number, or passwords.",
+          "Rule 2: If an AI says something weird, mean, or confusing, stop and show a grown-up.",
+          "Rule 3: Don't believe everything an AI says — check important things with a person or a book.",
+          "Rule 4: AI is for helping you think, not thinking instead of you. Your homework should still have YOUR ideas in it.",
         ],
         tryIt:
           "Make a 'safety poster' with the four rules — draw it, or ask the AI to help you make it catchy. Hang it near the computer.",

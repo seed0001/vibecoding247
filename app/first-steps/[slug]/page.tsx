@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FirstStepsVisitMarker } from "@/components/first-steps-visit-marker";
+import { LessonSteps } from "@/components/lesson-steps";
 import {
   firstStepsLessons,
   getFirstStepsLesson,
@@ -65,31 +66,7 @@ export default async function FirstStepsLessonPage({ params }: Props) {
         </div>
 
         <div className="space-y-10 px-6 py-10 sm:px-10">
-          {lesson.sections.map((section) => (
-            <section key={section.heading}>
-              <h2 className="text-2xl font-extrabold tracking-tight">
-                {section.heading}
-              </h2>
-              {section.paragraphs.map((paragraph) => (
-                <p
-                  key={paragraph.slice(0, 40)}
-                  className="mt-4 text-[17px] leading-relaxed text-slate-700"
-                >
-                  {paragraph}
-                </p>
-              ))}
-              {section.tryIt && (
-                <div className="mt-5 rounded-2xl border-2 border-dashed border-amber-400 bg-amber-100/70 p-5">
-                  <p className="text-sm font-extrabold uppercase tracking-wider text-amber-700">
-                    ⭐ Try it!
-                  </p>
-                  <p className="mt-2 text-[16px] font-medium leading-relaxed text-slate-800">
-                    {section.tryIt}
-                  </p>
-                </div>
-              )}
-            </section>
-          ))}
+          <LessonSteps sections={lesson.sections} color={lesson.color} />
 
           <section className="rounded-2xl bg-slate-800 p-6 text-slate-100">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
