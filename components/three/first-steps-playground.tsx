@@ -28,6 +28,7 @@ export interface WorldLesson {
 
 const ISLAND_RADIUS = 16;
 const SPAWN: [number, number, number] = [0, 0, 6];
+const EYE_HEIGHT = 1.55;
 
 /** Stepping-stone platforms rising to a sky deck. */
 const PLATFORMS: { x: number; z: number; top: number; size: number }[] = [
@@ -52,6 +53,65 @@ const STARS: { id: string; x: number; y: number; z: number }[] = [
   { id: "p2", x: 11.2, y: 3.8, z: -10.2 },
   { id: "p3", x: 8.6, y: 4.4, z: -11.8 },
   { id: "p4", x: 8.6, y: 4.4, z: -13 },
+];
+
+/** Friendly critters that wander the island and chat when you say hi. */
+const CRITTERS: {
+  id: string;
+  name: string;
+  kind: "bunny" | "blob" | "bird";
+  color: string;
+  home: [number, number];
+  msgs: string[];
+}[] = [
+  {
+    id: "pip",
+    name: "Pip",
+    kind: "bunny",
+    color: "#f472b6",
+    home: [4, 3],
+    msgs: [
+      "Hi! I'm Pip! Press SPACE to jump — it's the best!",
+      "Did you find the stars up on the pink platforms?",
+      "Boing boing boing!",
+    ],
+  },
+  {
+    id: "momo",
+    name: "Momo",
+    kind: "blob",
+    color: "#34d399",
+    home: [-5, -3],
+    msgs: [
+      "I'm Momo! I love naps in the grass.",
+      "Walk into a glowing ring to open a lesson!",
+      "Wow, you run fast!",
+    ],
+  },
+  {
+    id: "zuzu",
+    name: "Zuzu",
+    kind: "bird",
+    color: "#60a5fa",
+    home: [-8, 7],
+    msgs: [
+      "Cheep cheep! I'm Zuzu!",
+      "Collect ALL the stars — you can do it!",
+      "The sky deck has the best view on the island!",
+    ],
+  },
+  {
+    id: "bo",
+    name: "Bo",
+    kind: "blob",
+    color: "#fbbf24",
+    home: [9, 6],
+    msgs: [
+      "Heya, I'm Bo! You found me!",
+      "If you fall off the edge, don't worry — you pop right back.",
+      "Say hi to my friends Pip, Momo, and Zuzu too!",
+    ],
+  },
 ];
 
 const STARS_KEY = "vc247-fs-stars";
@@ -99,6 +159,8 @@ interface InputState {
   /** Set on keydown, consumed by the physics frame — so a quick tap
    *  still jumps even if it lands between two slow frames. */
   jumpQueued: boolean;
+  /** Set on E keydown / wave button, consumed by the nearest critter. */
+  interactQueued: boolean;
 }
 
 function useInput(): MutableRefObject<InputState> {
@@ -109,6 +171,7 @@ function useInput(): MutableRefObject<InputState> {
     right: false,
     jump: false,
     jumpQueued: false,
+    interactQueued: false,
   });
 
   useEffect(() => {
@@ -134,6 +197,9 @@ function useInput(): MutableRefObject<InputState> {
           input.current.jump = down;
           if (down) input.current.jumpQueued = true;
           return true;
+        case "KeyE":
+          if (down) input.current.interactQueued = true;
+          return true;
         default:
           return false;
       }
@@ -156,35 +222,131 @@ function useInput(): MutableRefObject<InputState> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Player + camera                                                     */
+/* First-person look (pointer lock on desktop, drag on touch)          */
 /* ------------------------------------------------------------------ */
 
-function Player({
+const PITCH_LIMIT = 1.25;
+
+function useLook(
+  containerRef: MutableRefObject<HTMLDivElement | null>,
+  yaw: MutableRefObject<number>,
+  pitch: MutableRefObject<number>,
+  onLook: () => void,
+) {
+  const [locked, setLocked] = useState(false);
+  const touchId = useRef<number | null>(null);
+  const lastTouch = useRef<[number, number]>([0, 0]);
+
+  // pointer lock (desktop)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onChange = () => setLocked(document.pointerLockElement === el);
+    const onMove = (e: MouseEvent) => {
+      if (document.pointerLockElement !== el) return;
+      yaw.current -= e.movementX * 0.0025;
+      pitch.current = MathUtils.clamp(
+        pitch.current - e.movementY * 0.0025,
+        -PITCH_LIMIT,
+        PITCH_LIMIT,
+      );
+      if (e.movementX !== 0 || e.movementY !== 0) onLook();
+    };
+    document.addEventListener("pointerlockchange", onChange);
+    document.addEventListener("mousemove", onMove);
+    return () => {
+      document.removeEventListener("pointerlockchange", onChange);
+      document.removeEventListener("mousemove", onMove);
+    };
+  }, [containerRef, yaw, pitch, onLook]);
+
+  const requestLock = useCallback(
+    (e: React.MouseEvent) => {
+      const el = containerRef.current;
+      if (!el || document.pointerLockElement === el) return;
+      // only lock from clicks on the 3D canvas itself, not HUD buttons
+      if ((e.target as HTMLElement).tagName !== "CANVAS") return;
+      if (window.matchMedia("(pointer: coarse)").matches) return;
+      el.requestPointerLock();
+    },
+    [containerRef],
+  );
+
+  // drag look (touch)
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType !== "touch") return;
+    if ((e.target as HTMLElement).tagName !== "CANVAS") return;
+    if (touchId.current !== null) return;
+    touchId.current = e.pointerId;
+    lastTouch.current = [e.clientX, e.clientY];
+  }, []);
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.pointerId !== touchId.current) return;
+      const dx = e.clientX - lastTouch.current[0];
+      const dy = e.clientY - lastTouch.current[1];
+      lastTouch.current = [e.clientX, e.clientY];
+      yaw.current -= dx * 0.005;
+      pitch.current = MathUtils.clamp(
+        pitch.current - dy * 0.004,
+        -PITCH_LIMIT,
+        PITCH_LIMIT,
+      );
+      if (dx !== 0 || dy !== 0) onLook();
+    },
+    [yaw, pitch, onLook],
+  );
+  const endTouch = useCallback((e: React.PointerEvent) => {
+    if (e.pointerId === touchId.current) touchId.current = null;
+  }, []);
+
+  return {
+    locked,
+    handlers: {
+      onClick: requestLock,
+      onPointerDown,
+      onPointerMove,
+      onPointerUp: endTouch,
+      onPointerCancel: endTouch,
+      onPointerLeave: endTouch,
+    },
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Player rig (you ARE the camera)                                     */
+/* ------------------------------------------------------------------ */
+
+function PlayerRig({
   input: inputRef,
   yaw,
+  pitch,
   playerPos,
   onMoved,
   onJumped,
 }: {
   input: MutableRefObject<InputState>;
   yaw: MutableRefObject<number>;
+  pitch: MutableRefObject<number>;
   playerPos: MutableRefObject<Vector3>;
   onMoved: () => void;
   onJumped: () => void;
 }) {
-  const group = useRef<Group>(null);
   const vel = useRef(new Vector3());
   const grounded = useRef(true);
-  const heading = useRef(0);
+  const bobPhase = useRef(0);
   const { camera } = useThree();
 
-  useFrame((state, rawDelta) => {
+  useEffect(() => {
+    camera.rotation.order = "YXZ";
+  }, [camera]);
+
+  useFrame((_, rawDelta) => {
     const dt = Math.min(rawDelta, 0.05);
-    if (!group.current) return;
-    const pos = group.current.position;
+    const pos = playerPos.current;
     const inp = inputRef.current;
 
-    // movement relative to camera yaw
+    // movement relative to look yaw
     let mx = 0;
     let mz = 0;
     if (inp.forward) mz -= 1;
@@ -198,11 +360,10 @@ function Player({
       const speed = 5.2;
       const sin = Math.sin(yaw.current);
       const cos = Math.cos(yaw.current);
-      const wx = (mx * cos - mz * sin) / len;
-      const wz = (mx * sin + mz * cos) / len;
+      const wx = (mx * cos + mz * sin) / len;
+      const wz = (-mx * sin + mz * cos) / len;
       pos.x += wx * speed * dt;
       pos.z += wz * speed * dt;
-      heading.current = Math.atan2(wx, wz);
     }
 
     // jumping + gravity
@@ -230,64 +391,27 @@ function Player({
       vel.current.set(0, 0, 0);
     }
 
-    // face travel direction, add a happy walk-bob
-    group.current.rotation.y = MathUtils.lerp(
-      group.current.rotation.y,
-      heading.current,
-      Math.min(dt * 10, 1),
-    );
-    const bob = moving && grounded.current
-      ? Math.sin(state.clock.elapsedTime * 12) * 0.06
-      : 0;
-    group.current.children[0].position.y = 1.05 + bob;
+    // gentle head-bob while running on the ground
+    if (moving && grounded.current) {
+      bobPhase.current += dt * 11;
+    }
+    const bob =
+      moving && grounded.current ? Math.sin(bobPhase.current) * 0.045 : 0;
 
-    playerPos.current.copy(pos);
-
-    // follow camera
-    const dist = 7.5;
-    const height = 3.4;
-    const cx = pos.x + Math.sin(yaw.current) * dist;
-    const cz = pos.z + Math.cos(yaw.current) * dist;
-    camera.position.lerp(new Vector3(cx, pos.y + height, cz), Math.min(dt * 5, 1));
-    camera.lookAt(pos.x, pos.y + 1.2, pos.z);
+    camera.position.set(pos.x, pos.y + EYE_HEIGHT + bob, pos.z);
+    camera.rotation.y = yaw.current;
+    camera.rotation.x = pitch.current;
   });
 
-  return (
-    <group ref={group} position={SPAWN}>
-      {/* body group (bobs while walking) */}
-      <group position={[0, 1.05, 0]}>
-        <mesh position={[0, -0.45, 0]}>
-          <boxGeometry args={[0.55, 0.5, 0.4]} />
-          <meshStandardMaterial color="#6366f1" roughness={0.4} />
-        </mesh>
-        <mesh position={[0, 0.1, 0]}>
-          <boxGeometry args={[0.7, 0.55, 0.55]} />
-          <meshStandardMaterial color="#a5b4fc" roughness={0.4} />
-        </mesh>
-        <mesh position={[-0.16, 0.13, 0.29]}>
-          <sphereGeometry args={[0.09, 16, 16]} />
-          <meshBasicMaterial color="#0ea5e9" />
-        </mesh>
-        <mesh position={[0.16, 0.13, 0.29]}>
-          <sphereGeometry args={[0.09, 16, 16]} />
-          <meshBasicMaterial color="#0ea5e9" />
-        </mesh>
-        <mesh position={[0, 0.5, 0]}>
-          <cylinderGeometry args={[0.025, 0.025, 0.3, 8]} />
-          <meshStandardMaterial color="#4f46e5" />
-        </mesh>
-        <mesh position={[0, 0.7, 0]}>
-          <sphereGeometry args={[0.07, 16, 16]} />
-          <meshBasicMaterial color="#f59e0b" />
-        </mesh>
-      </group>
-      {/* fake blob shadow */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-        <circleGeometry args={[0.5, 24]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.18} />
-      </mesh>
-    </group>
-  );
+  return null;
+}
+
+/** Runs after the critters each frame and clears one-shot input flags. */
+function InputJanitor({ input }: { input: MutableRefObject<InputState> }) {
+  useFrame(() => {
+    input.current.interactQueued = false;
+  });
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -403,6 +527,191 @@ function LessonGate({
 }
 
 /* ------------------------------------------------------------------ */
+/* Critters                                                            */
+/* ------------------------------------------------------------------ */
+
+const INTERACT_RANGE = 2.6;
+
+function Critter({
+  critter,
+  input,
+  playerPos,
+  onInteract,
+}: {
+  critter: (typeof CRITTERS)[number];
+  input: MutableRefObject<InputState>;
+  playerPos: MutableRefObject<Vector3>;
+  onInteract: () => void;
+}) {
+  const group = useRef<Group>(null);
+  const body = useRef<Group>(null);
+  const target = useRef(new Vector3(critter.home[0], 0, critter.home[1]));
+  const retargetAt = useRef(0);
+  const msgIndex = useRef(0);
+  const msgUntil = useRef(0);
+  const spin = useRef(0);
+  const [near, setNear] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useFrame((state, rawDelta) => {
+    const dt = Math.min(rawDelta, 0.05);
+    const g = group.current;
+    if (!g) return;
+    const t = state.clock.elapsedTime;
+    const p = playerPos.current;
+    const dx = p.x - g.position.x;
+    const dz = p.z - g.position.z;
+    const playerDist = Math.hypot(dx, dz);
+    const isNear = playerDist < INTERACT_RANGE && Math.abs(p.y) < 2;
+
+    if (isNear !== near) setNear(isNear);
+
+    // say hi!
+    if (isNear && input.current.interactQueued) {
+      input.current.interactQueued = false;
+      setMsg(critter.msgs[msgIndex.current % critter.msgs.length]);
+      msgIndex.current += 1;
+      msgUntil.current = t + 3.2;
+      spin.current = Math.PI * 2;
+      onInteract();
+    }
+    if (msg && t > msgUntil.current) setMsg(null);
+
+    if (isNear) {
+      // stop and face the player
+      g.rotation.y = MathUtils.lerp(
+        g.rotation.y,
+        Math.atan2(dx, dz),
+        Math.min(dt * 8, 1),
+      );
+    } else {
+      // wander near home
+      if (t > retargetAt.current) {
+        retargetAt.current = t + 2.5 + Math.random() * 3;
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.random() * 2.5;
+        target.current.set(
+          critter.home[0] + Math.sin(a) * r,
+          0,
+          critter.home[1] + Math.cos(a) * r,
+        );
+      }
+      const tx = target.current.x - g.position.x;
+      const tz = target.current.z - g.position.z;
+      const dist = Math.hypot(tx, tz);
+      if (dist > 0.15) {
+        const speed = 1.1;
+        g.position.x += (tx / dist) * speed * dt;
+        g.position.z += (tz / dist) * speed * dt;
+        g.rotation.y = MathUtils.lerp(
+          g.rotation.y,
+          Math.atan2(tx, tz),
+          Math.min(dt * 6, 1),
+        );
+      }
+    }
+
+    // hop bob + happy spin after a greeting
+    const movingHop = !isNear ? Math.abs(Math.sin(t * 6)) * 0.12 : 0;
+    const idleBreath = Math.sin(t * 3 + critter.home[0]) * 0.02;
+    if (body.current) {
+      body.current.position.y = 0.32 + movingHop + idleBreath;
+      if (spin.current > 0) {
+        const step = Math.min(spin.current, dt * 9);
+        body.current.rotation.y += step;
+        spin.current -= step;
+      } else {
+        body.current.rotation.y = 0;
+      }
+    }
+  });
+
+  return (
+    <group ref={group} position={[critter.home[0], 0, critter.home[1]]}>
+      <group ref={body} position={[0, 0.32, 0]}>
+        {/* body */}
+        <mesh scale={[1, 0.85, 1]}>
+          <sphereGeometry args={[0.34, 24, 24]} />
+          <meshStandardMaterial color={critter.color} roughness={0.55} />
+        </mesh>
+        {/* eyes */}
+        <mesh position={[-0.12, 0.08, 0.28]}>
+          <sphereGeometry args={[0.06, 12, 12]} />
+          <meshBasicMaterial color="#1e293b" />
+        </mesh>
+        <mesh position={[0.12, 0.08, 0.28]}>
+          <sphereGeometry args={[0.06, 12, 12]} />
+          <meshBasicMaterial color="#1e293b" />
+        </mesh>
+        {/* kind-specific bits */}
+        {critter.kind === "bunny" && (
+          <>
+            <mesh position={[-0.12, 0.42, 0]} rotation={[0, 0, 0.15]}>
+              <capsuleGeometry args={[0.05, 0.3, 4, 10]} />
+              <meshStandardMaterial color={critter.color} roughness={0.55} />
+            </mesh>
+            <mesh position={[0.12, 0.42, 0]} rotation={[0, 0, -0.15]}>
+              <capsuleGeometry args={[0.05, 0.3, 4, 10]} />
+              <meshStandardMaterial color={critter.color} roughness={0.55} />
+            </mesh>
+          </>
+        )}
+        {critter.kind === "blob" && (
+          <>
+            <mesh position={[0, 0.4, 0]}>
+              <cylinderGeometry args={[0.02, 0.02, 0.22, 6]} />
+              <meshStandardMaterial color="#475569" />
+            </mesh>
+            <mesh position={[0, 0.54, 0]}>
+              <sphereGeometry args={[0.055, 12, 12]} />
+              <meshBasicMaterial color="#fef08a" />
+            </mesh>
+          </>
+        )}
+        {critter.kind === "bird" && (
+          <>
+            <mesh position={[0, 0.02, 0.34]} rotation={[Math.PI / 2, 0, 0]}>
+              <coneGeometry args={[0.06, 0.16, 8]} />
+              <meshStandardMaterial color="#f59e0b" />
+            </mesh>
+            <mesh position={[-0.3, 0, 0]} rotation={[0, 0, 0.7]} scale={[1, 0.5, 0.7]}>
+              <sphereGeometry args={[0.14, 12, 12]} />
+              <meshStandardMaterial color={critter.color} roughness={0.55} />
+            </mesh>
+            <mesh position={[0.3, 0, 0]} rotation={[0, 0, -0.7]} scale={[1, 0.5, 0.7]}>
+              <sphereGeometry args={[0.14, 12, 12]} />
+              <meshStandardMaterial color={critter.color} roughness={0.55} />
+            </mesh>
+          </>
+        )}
+      </group>
+      {/* blob shadow */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+        <circleGeometry args={[0.32, 20]} />
+        <meshBasicMaterial color="#000000" transparent opacity={0.16} />
+      </mesh>
+      {/* speech bubble / prompt */}
+      {(msg || near) && (
+        <Html center position={[0, 1.15, 0]} className="pointer-events-none select-none">
+          {msg ? (
+            <div className="w-48 rounded-2xl bg-white/95 px-3 py-2 text-center text-[12px] font-bold text-slate-800 shadow-lg">
+              <span className="block text-[10px] font-extrabold uppercase tracking-wide text-slate-400">
+                {critter.name}
+              </span>
+              {msg}
+            </div>
+          ) : (
+            <div className="whitespace-nowrap rounded-full bg-slate-900/85 px-3 py-1 text-[11px] font-bold text-white shadow">
+              press <kbd className="rounded bg-white/20 px-1">E</kbd> to say hi 👋
+            </div>
+          )}
+        </Html>
+      )}
+    </group>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Scenery                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -453,60 +762,43 @@ function Scenery() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Camera drag control                                                 */
-/* ------------------------------------------------------------------ */
-
-function useDragYaw(yawRef: MutableRefObject<number>) {
-  const dragging = useRef(false);
-  const lastX = useRef(0);
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
-    dragging.current = true;
-    lastX.current = e.clientX;
-  }, []);
-  const onPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!dragging.current) return;
-      const dx = e.clientX - lastX.current;
-      lastX.current = e.clientX;
-      yawRef.current -= dx * 0.006;
-    },
-    [yawRef],
-  );
-  const stop = useCallback(() => {
-    dragging.current = false;
-  }, []);
-  return { onPointerDown, onPointerMove, onPointerUp: stop, onPointerLeave: stop };
-}
-
-/* ------------------------------------------------------------------ */
 /* Main component                                                      */
 /* ------------------------------------------------------------------ */
 
-type TutorialStep = 0 | 1 | 2 | 3 | 4;
+type TutorialStep = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 const TUTORIAL: Record<TutorialStep, string> = {
-  0: "Press the W A S D keys (or arrows) to walk!",
-  1: "You're moving! Now press SPACE to jump!",
-  2: "Woohoo! Go collect the glowing stars — some are up on the pink platforms!",
-  3: "You're navigating like a gamer! Walk into a glowing ring to open a lesson.",
-  4: "ALL the stars?! You're officially a 3D explorer! ⭐",
+  0: "Click the world (or drag on a phone) and look around with your mouse!",
+  1: "Nice! Now run with the W A S D keys (or arrows)!",
+  2: "You're moving! Press SPACE to jump!",
+  3: "Woohoo! Go collect the glowing stars — some are up on the pink platforms!",
+  4: "See a little creature? Walk up close and press E to say hi!",
+  5: "You made a friend! Walk into a glowing ring to open a lesson.",
+  6: "ALL the stars?! You're officially a 3D explorer! ⭐",
 };
 
 export function FirstStepsPlayground({ lessons }: { lessons: WorldLesson[] }) {
   const inputRef = useInput();
   const yaw = useRef(0);
+  const pitch = useRef(0);
   const playerPos = useRef(new Vector3(...SPAWN));
-  const drag = useDragYaw(yaw);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [visited] = useState<string[]>(() => getVisitedLessons());
   const [collected, setCollected] = useState<string[]>(() => loadCollectedStars());
   const [step, setStep] = useState<TutorialStep>(0);
 
-  const onMoved = useCallback(() => {
+  const onLook = useCallback(() => {
     setStep((s) => (s === 0 ? 1 : s));
   }, []);
-  const onJumped = useCallback(() => {
+  const onMoved = useCallback(() => {
     setStep((s) => (s === 1 ? 2 : s));
+  }, []);
+  const onJumped = useCallback(() => {
+    setStep((s) => (s === 2 ? 3 : s));
+  }, []);
+  const onInteract = useCallback(() => {
+    setStep((s) => (s === 4 ? 5 : s));
   }, []);
   const onCollect = useCallback((id: string) => {
     setCollected((prev) => {
@@ -514,13 +806,15 @@ export function FirstStepsPlayground({ lessons }: { lessons: WorldLesson[] }) {
       const next = [...prev, id];
       saveCollectedStars(next);
       setStep((s) => {
-        if (next.length >= STARS.length) return 4;
-        if (s === 2 && next.length >= 3) return 3;
+        if (next.length >= STARS.length) return 6;
+        if (s === 3 && next.length >= 3) return 4;
         return s;
       });
       return next;
     });
   }, []);
+
+  const { locked, handlers } = useLook(containerRef, yaw, pitch, onLook);
 
   // touch helpers
   const handlePress = useCallback(
@@ -531,13 +825,20 @@ export function FirstStepsPlayground({ lessons }: { lessons: WorldLesson[] }) {
     },
     [inputRef, onMoved],
   );
+  const handleWave = useCallback(() => {
+    inputRef.current.interactQueued = true;
+  }, [inputRef]);
 
   return (
     <div
+      ref={containerRef}
       className="relative h-full w-full touch-none"
-      {...drag}
+      {...handlers}
     >
-      <Canvas camera={{ position: [0, 3.6, 13], fov: 55 }} dpr={[1, 1.75]}>
+      <Canvas
+        camera={{ position: [SPAWN[0], EYE_HEIGHT, SPAWN[2]], fov: 70 }}
+        dpr={[1, 1.75]}
+      >
         <Sky sunPosition={[8, 5, -4]} turbidity={6} rayleigh={0.7} />
         <ambientLight intensity={0.85} />
         <directionalLight position={[8, 12, 6]} intensity={2.1} />
@@ -558,17 +859,40 @@ export function FirstStepsPlayground({ lessons }: { lessons: WorldLesson[] }) {
             angleDeg={140 + i * 44}
             visited={visited.includes(lesson.slug)}
             playerPos={playerPos}
-            enabled={step >= 3 || visited.length > 0}
+            enabled={step >= 5 || visited.length > 0}
           />
         ))}
-        <Player
+        <PlayerRig
           input={inputRef}
           yaw={yaw}
+          pitch={pitch}
           playerPos={playerPos}
           onMoved={onMoved}
           onJumped={onJumped}
         />
+        {CRITTERS.map((critter) => (
+          <Critter
+            key={critter.id}
+            critter={critter}
+            input={inputRef}
+            playerPos={playerPos}
+            onInteract={onInteract}
+          />
+        ))}
+        <InputJanitor input={inputRef} />
       </Canvas>
+
+      {/* crosshair */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 shadow-[0_0_4px_rgba(0,0,0,0.5)]" />
+
+      {/* click-to-play hint (desktop, when the mouse isn't captured) */}
+      {!locked && step > 0 && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-24 hidden justify-center [@media(pointer:fine)]:flex">
+          <p className="rounded-full bg-slate-900/75 px-4 py-1.5 text-xs font-bold text-white shadow backdrop-blur">
+            🖱 click to look around · ESC frees your mouse
+          </p>
+        </div>
+      )}
 
       {/* Tutorial banner */}
       <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center px-4">
@@ -592,7 +916,7 @@ export function FirstStepsPlayground({ lessons }: { lessons: WorldLesson[] }) {
             <kbd className="rounded-lg bg-white/90 px-3 py-2 font-mono text-sm font-bold text-slate-800 shadow">D</kbd>
           </div>
           <p className="mt-1 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-            walk · SPACE = jump · drag = look
+            run · SPACE jump · E say hi · mouse look
           </p>
         </div>
       </div>
@@ -600,7 +924,7 @@ export function FirstStepsPlayground({ lessons }: { lessons: WorldLesson[] }) {
       {/* Touch controls (phones/tablets) */}
       <div className="absolute bottom-4 left-4 flex select-none flex-col items-center gap-1 sm:hidden">
         <button
-          aria-label="Walk forward"
+          aria-label="Run forward"
           className="h-12 w-12 rounded-xl bg-white/85 text-lg font-black text-slate-800 shadow active:bg-amber-200"
           onPointerDown={() => handlePress("forward", true)}
           onPointerUp={() => handlePress("forward", false)}
@@ -610,7 +934,7 @@ export function FirstStepsPlayground({ lessons }: { lessons: WorldLesson[] }) {
         </button>
         <div className="flex gap-1">
           <button
-            aria-label="Walk left"
+            aria-label="Run left"
             className="h-12 w-12 rounded-xl bg-white/85 text-lg font-black text-slate-800 shadow active:bg-amber-200"
             onPointerDown={() => handlePress("left", true)}
             onPointerUp={() => handlePress("left", false)}
@@ -619,7 +943,7 @@ export function FirstStepsPlayground({ lessons }: { lessons: WorldLesson[] }) {
             ←
           </button>
           <button
-            aria-label="Walk back"
+            aria-label="Run back"
             className="h-12 w-12 rounded-xl bg-white/85 text-lg font-black text-slate-800 shadow active:bg-amber-200"
             onPointerDown={() => handlePress("back", true)}
             onPointerUp={() => handlePress("back", false)}
@@ -628,7 +952,7 @@ export function FirstStepsPlayground({ lessons }: { lessons: WorldLesson[] }) {
             ↓
           </button>
           <button
-            aria-label="Walk right"
+            aria-label="Run right"
             className="h-12 w-12 rounded-xl bg-white/85 text-lg font-black text-slate-800 shadow active:bg-amber-200"
             onPointerDown={() => handlePress("right", true)}
             onPointerUp={() => handlePress("right", false)}
@@ -638,15 +962,24 @@ export function FirstStepsPlayground({ lessons }: { lessons: WorldLesson[] }) {
           </button>
         </div>
       </div>
-      <button
-        aria-label="Jump"
-        className="absolute bottom-6 right-4 h-16 w-16 select-none rounded-full bg-emerald-400/90 text-sm font-black text-white shadow-lg active:bg-emerald-500 sm:hidden"
-        onPointerDown={() => handlePress("jump", true)}
-        onPointerUp={() => handlePress("jump", false)}
-        onPointerLeave={() => handlePress("jump", false)}
-      >
-        JUMP
-      </button>
+      <div className="absolute bottom-6 right-4 flex select-none flex-col items-center gap-2 sm:hidden">
+        <button
+          aria-label="Say hi"
+          className="h-12 w-12 rounded-full bg-sky-400/90 text-xl shadow-lg active:bg-sky-500"
+          onPointerDown={handleWave}
+        >
+          👋
+        </button>
+        <button
+          aria-label="Jump"
+          className="h-16 w-16 rounded-full bg-emerald-400/90 text-sm font-black text-white shadow-lg active:bg-emerald-500"
+          onPointerDown={() => handlePress("jump", true)}
+          onPointerUp={() => handlePress("jump", false)}
+          onPointerLeave={() => handlePress("jump", false)}
+        >
+          JUMP
+        </button>
+      </div>
     </div>
   );
 }

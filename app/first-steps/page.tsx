@@ -41,8 +41,9 @@ export default function FirstStepsPage() {
           Moving through 3D space with W-A-S-D, the mouse, and the spacebar is
           becoming a foundational computer skill — the same controls work in
           games, creative tools, and the 3D websites that are coming next.
-          First Steps teaches it by playing: walk, jump, collect the stars,
-          then step into a glowing ring to open a lesson.
+          First Steps teaches it by playing, in first person: look around with
+          the mouse, run, jump, collect the stars, say hi to the island
+          creatures, then step into a glowing ring to open a lesson.
         </p>
         <h2 className="mt-10 text-xl font-semibold tracking-tight">
           The lessons, as a list
