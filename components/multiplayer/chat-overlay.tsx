@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/lib/use-presence";
+import type { VoiceStatus } from "@/lib/voice-engine";
 
 /**
  * Room chat. Press T (or tap the bubble) to talk; ESC closes.
@@ -12,11 +13,21 @@ export function ChatOverlay({
   sendChat,
   connected,
   signedIn,
+  voiceStatus,
+  micMuted,
+  joinVoice,
+  leaveVoice,
+  toggleMute,
 }: {
   chat: ChatMessage[];
   sendChat: (text: string) => void;
   connected: boolean;
   signedIn: boolean;
+  voiceStatus: VoiceStatus;
+  micMuted: boolean;
+  joinVoice: () => void;
+  leaveVoice: () => void;
+  toggleMute: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -49,8 +60,48 @@ export function ChatOverlay({
 
   const recent = chat.slice(-8);
 
+  const voiceOn = voiceStatus === "on" || voiceStatus === "listen";
+
   return (
     <div className="absolute bottom-4 right-4 z-[6] flex w-72 flex-col items-end gap-2 sm:bottom-6 sm:right-6">
+      {signedIn && connected && (
+        <div className="flex items-center gap-1.5">
+          {!voiceOn ? (
+            <button
+              onClick={joinVoice}
+              disabled={voiceStatus === "connecting"}
+              className="rounded-full bg-emerald-500/90 px-4 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition-colors hover:bg-emerald-500 disabled:opacity-60"
+            >
+              {voiceStatus === "connecting" ? "Joining…" : "🎙 Join voice"}
+            </button>
+          ) : (
+            <>
+              {voiceStatus === "listen" ? (
+                <span className="rounded-full bg-black/55 px-3 py-2 text-[11px] font-bold text-amber-300 backdrop-blur">
+                  👂 Listening (mic blocked)
+                </span>
+              ) : (
+                <button
+                  onClick={toggleMute}
+                  className={`rounded-full px-4 py-2 text-xs font-bold shadow-lg backdrop-blur transition-colors ${
+                    micMuted
+                      ? "bg-rose-500/90 text-white hover:bg-rose-500"
+                      : "bg-black/55 text-white hover:bg-black/75"
+                  }`}
+                >
+                  {micMuted ? "🔇 Unmute" : "🎙 Mute"}
+                </button>
+              )}
+              <button
+                onClick={leaveVoice}
+                className="rounded-full bg-black/55 px-3 py-2 text-[11px] font-bold text-white/60 backdrop-blur hover:text-white"
+              >
+                Leave
+              </button>
+            </>
+          )}
+        </div>
+      )}
       {(open || recent.length > 0) && (
         <div
           ref={listRef}

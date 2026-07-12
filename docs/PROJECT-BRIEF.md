@@ -82,9 +82,17 @@ is visually new and untested.**
   rate-limited. Typing never triggers WASD (input guard checks target).
 - **Orb color**: picked at signup, changeable from the account chip
   (top-left of every 3D page).
-- **Next phases**: WebRTC proximity VOICE using this same ws server for
-  signaling (owner wants people to literally talk); custom avatars to
-  replace orbs later, customized at an in-world mirror.
+- **Voice (live)**: WebRTC mesh over the same ws (types "voice" + "rtc"
+  relay), deterministic offerer = lower conn id (no glare). "Join voice"
+  button by the chat bubble; mic-denied users get listen-only; mute
+  toggle. Spatialized with WebAudio PannerNodes (equalpower, inverse
+  distance, refDistance 2, maxDistance 60) — voices come from orb
+  positions and fade with distance; listener follows camera yaw. STUN
+  only (Google) — no TURN, so rare strict-NAT pairs may fail; engine in
+  lib/voice-engine.ts. Chrome quirk handled: remote streams also attach
+  to a muted <audio> element or WebAudio gets silence.
+- **Next**: custom avatars to replace orbs, customized at an in-world
+  mirror.
 - Client pieces: `lib/use-session.ts`, `lib/use-presence.ts`,
   `components/multiplayer/{peer-orbs,chat-overlay,account-panel}.tsx`.
 - Galaxy realm rebuild is IN PROGRESS: `lib/galaxy.ts` (seeded procedural

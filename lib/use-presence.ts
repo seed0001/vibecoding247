@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import type { Vector3 } from "three";
+import { VoiceEngine, type VoiceStatus } from "@/lib/voice-engine";
 
 export interface Peer {
   id: string;
@@ -10,6 +11,7 @@ export interface Peer {
   color: string;
   /** latest network position: x, y, z, yaw */
   target: [number, number, number, number];
+  voice: boolean;
 }
 
 export interface ChatMessage {
@@ -41,6 +43,9 @@ export function usePresence(
   const [connected, setConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const selfIdRef = useRef<string>("");
+  const engineRef = useRef<VoiceEngine | null>(null);
+  const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>("off");
+  const [micMuted, setMicMuted] = useState(false);
 
   useEffect(() => {
     if (!enabled) return;
@@ -74,6 +79,18 @@ export function usePresence(
               ],
             }),
           );
+          const engine = engineRef.current;
+          if (engine) {
+            const positions = new Map<
+              string,
+              [number, number, number, number]
+            >();
+            for (const [id, peer] of peers) positions.set(id, peer.target);
+            engine.updatePositions(
+              { x: p.x, y: p.y + 1.55, z: p.z, yaw: yawRef.current },
+              positions,
+            );
+          }
         }, POS_INTERVAL_MS);
       };
 
@@ -93,6 +110,7 @@ export function usePresence(
               handle: String(p.handle),
               color: String(p.color),
               target: (p.pos as Peer["target"]) ?? [0, 0, 0, 0],
+              voice: !!p.voice,
             });
           }
           setPeerList([...peers.values()]);
@@ -102,11 +120,26 @@ export function usePresence(
             handle: String(msg.handle),
             color: String(msg.color),
             target: (msg.pos as Peer["target"]) ?? [0, 0, 0, 0],
+            voice: !!msg.voice,
           });
           setPeerList([...peers.values()]);
         } else if (msg.type === "leave") {
           peers.delete(String(msg.id));
+          engineRef.current?.peerLeft(String(msg.id));
           setPeerList([...peers.values()]);
+        } else if (msg.type === "voice") {
+          const peer = peers.get(String(msg.id));
+          if (peer) {
+            peer.voice = !!msg.on;
+            if (peer.voice) engineRef.current?.peerJoinedVoice(peer.id);
+            else engineRef.current?.peerLeft(peer.id);
+            setPeerList([...peers.values()]);
+          }
+        } else if (msg.type === "rtc" && msg.data) {
+          void engineRef.current?.handleSignal(
+            String(msg.from),
+            msg.data as Record<string, unknown>,
+          );
         } else if (msg.type === "pos") {
           const peer = peers.get(String(msg.id));
           if (peer && Array.isArray(msg.pos)) {
@@ -142,6 +175,8 @@ export function usePresence(
     connect();
     return () => {
       disposed = true;
+      engineRef.current?.leave();
+      setVoiceStatus("off");
       if (posTimer) clearInterval(posTimer);
       if (retryTimer) clearTimeout(retryTimer);
       ws?.close();
@@ -153,6 +188,41 @@ export function usePresence(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room, enabled]);
 
+  const joinVoice = useCallback(() => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== 1) return;
+    if (!engineRef.current) {
+      engineRef.current = new VoiceEngine((to, data) => {
+        const socket = wsRef.current;
+        if (socket?.readyState === 1) {
+          socket.send(JSON.stringify({ type: "rtc", to, data }));
+        }
+      });
+      engineRef.current.onStatus = setVoiceStatus;
+    }
+    ws.send(JSON.stringify({ type: "voice", on: true }));
+    const voicePeers = [...peersRef.current.values()]
+      .filter((peer) => peer.voice)
+      .map((peer) => peer.id);
+    void engineRef.current.join(selfIdRef.current, voicePeers);
+  }, []);
+
+  const leaveVoice = useCallback(() => {
+    const ws = wsRef.current;
+    if (ws?.readyState === 1) {
+      ws.send(JSON.stringify({ type: "voice", on: false }));
+    }
+    engineRef.current?.leave();
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    const next = !engine.muted;
+    engine.setMuted(next);
+    setMicMuted(next);
+  }, []);
+
   const sendChat = useCallback((text: string) => {
     const ws = wsRef.current;
     const trimmed = text.trim();
@@ -161,5 +231,16 @@ export function usePresence(
     ws.send(JSON.stringify({ type: "chat", text: trimmed }));
   }, []);
 
-  return { peersRef, peerList, chat, sendChat, connected };
+  return {
+    peersRef,
+    peerList,
+    chat,
+    sendChat,
+    connected,
+    voiceStatus,
+    micMuted,
+    joinVoice,
+    leaveVoice,
+    toggleMute,
+  };
 }
