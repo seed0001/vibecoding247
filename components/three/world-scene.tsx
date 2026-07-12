@@ -6,6 +6,11 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Html, Sky, Stars } from "@react-three/drei";
 import { Group, Vector3 } from "three";
 import type { World, WorldZone } from "@/lib/data/worlds";
+import { AccountPanel } from "@/components/multiplayer/account-panel";
+import { ChatOverlay } from "@/components/multiplayer/chat-overlay";
+import { PeerOrbs } from "@/components/multiplayer/peer-orbs";
+import { usePresence } from "@/lib/use-presence";
+import { useSession } from "@/lib/use-session";
 import {
   BlinkOverlay,
   Crosshair,
@@ -355,6 +360,13 @@ export function WorldExperience({ world }: { world: World }) {
     Math.PI,
   );
   const gyro = useGyroLook();
+  const session = useSession();
+  const presence = usePresence(
+    `worlds/${world.slug}`,
+    !!session.user,
+    playerPosRef,
+    yawRef,
+  );
 
   const [nearZoneSlug, setNearZoneSlug] = useState<string | null>(null);
   const nearZone = world.zones.find((z) => z.slug === nearZoneSlug) ?? null;
@@ -385,6 +397,8 @@ export function WorldExperience({ world }: { world: World }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
       if (e.code === "KeyE") {
         e.preventDefault();
         interact();
@@ -424,6 +438,7 @@ export function WorldExperience({ world }: { world: World }) {
           playerPosRef={playerPosRef}
           config={{ spawn: [0, 0, 2], bounds: BOUNDS }}
         />
+        <PeerOrbs peers={presence.peerList} peersRef={presence.peersRef} />
       </Canvas>
 
       <BlinkOverlay />
@@ -453,7 +468,14 @@ export function WorldExperience({ world }: { world: World }) {
         </div>
       )}
 
-      <KeyLegend hint="move · mouse = look · SPACE = jump · E = enter" />
+      <KeyLegend hint="move · mouse = look · SPACE = jump · E = enter · T = chat" />
+      <AccountPanel session={session} />
+      <ChatOverlay
+        chat={presence.chat}
+        sendChat={presence.sendChat}
+        connected={presence.connected}
+        signedIn={!!session.user}
+      />
       <TouchControls inputRef={inputRef} />
       <GyroButton
         supported={gyro.supported}

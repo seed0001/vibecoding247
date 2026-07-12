@@ -29,6 +29,11 @@ import {
   useSiteStats,
   type SiteStatsView,
 } from "@/lib/use-site-stats";
+import { AccountPanel } from "@/components/multiplayer/account-panel";
+import { ChatOverlay } from "@/components/multiplayer/chat-overlay";
+import { PeerOrbs } from "@/components/multiplayer/peer-orbs";
+import { usePresence } from "@/lib/use-presence";
+import { useSession } from "@/lib/use-session";
 import {
   BlinkOverlay,
   Crosshair,
@@ -706,6 +711,13 @@ export function NexusExperience({ worlds }: { worlds: World[] }) {
   );
   const gyro = useGyroLook();
   const stats = useSiteStats();
+  const session = useSession();
+  const presence = usePresence(
+    "nexus",
+    !!session.user,
+    playerPosRef,
+    yawRef,
+  );
 
   const enter = useCallback(() => {
     setGreeting(false);
@@ -780,6 +792,7 @@ export function NexusExperience({ worlds }: { worlds: World[] }) {
           playerPosRef={playerPosRef}
           config={{ spawn: [0, 0, 0], bounds: 8.7 }}
         />
+        <PeerOrbs peers={presence.peerList} peersRef={presence.peersRef} />
       </Canvas>
 
       {!greeting && (
@@ -799,6 +812,13 @@ export function NexusExperience({ worlds }: { worlds: World[] }) {
             supported={gyro.supported}
             active={gyro.active}
             onEnable={() => void gyro.request()}
+          />
+          <AccountPanel session={session} />
+          <ChatOverlay
+            chat={presence.chat}
+            sendChat={presence.sendChat}
+            connected={presence.connected}
+            signedIn={!!session.user}
           />
         </>
       )}

@@ -81,10 +81,16 @@ export function useWorldInput(): MutableRefObject<InputState> {
           return false;
       }
     };
+    const isTyping = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      return !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA");
+    };
     const onDown = (e: KeyboardEvent) => {
+      if (isTyping(e)) return;
       if (set(e.code, true)) e.preventDefault();
     };
     const onUp = (e: KeyboardEvent) => {
+      if (isTyping(e)) return;
       if (set(e.code, false)) e.preventDefault();
     };
     window.addEventListener("keydown", onDown);
