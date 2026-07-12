@@ -236,8 +236,8 @@ const PITCH_LIMIT = 1.25;
 
 function useLook(
   containerRef: MutableRefObject<HTMLDivElement | null>,
-  yaw: MutableRefObject<number>,
-  pitch: MutableRefObject<number>,
+  yawRef: MutableRefObject<number>,
+  pitchRef: MutableRefObject<number>,
   onLook: () => void,
 ) {
   const [locked, setLocked] = useState(false);
@@ -251,9 +251,9 @@ function useLook(
     const onChange = () => setLocked(document.pointerLockElement === el);
     const onMove = (e: MouseEvent) => {
       if (document.pointerLockElement !== el) return;
-      yaw.current -= e.movementX * 0.0025;
-      pitch.current = MathUtils.clamp(
-        pitch.current - e.movementY * 0.0025,
+      yawRef.current -= e.movementX * 0.0025;
+      pitchRef.current = MathUtils.clamp(
+        pitchRef.current - e.movementY * 0.0025,
         -PITCH_LIMIT,
         PITCH_LIMIT,
       );
@@ -265,7 +265,7 @@ function useLook(
       document.removeEventListener("pointerlockchange", onChange);
       document.removeEventListener("mousemove", onMove);
     };
-  }, [containerRef, yaw, pitch, onLook]);
+  }, [containerRef, yawRef, pitchRef, onLook]);
 
   const requestLock = useCallback(
     (e: React.MouseEvent) => {
@@ -293,15 +293,15 @@ function useLook(
       const dx = e.clientX - lastTouch.current[0];
       const dy = e.clientY - lastTouch.current[1];
       lastTouch.current = [e.clientX, e.clientY];
-      yaw.current -= dx * 0.005;
-      pitch.current = MathUtils.clamp(
-        pitch.current - dy * 0.004,
+      yawRef.current -= dx * 0.005;
+      pitchRef.current = MathUtils.clamp(
+        pitchRef.current - dy * 0.004,
         -PITCH_LIMIT,
         PITCH_LIMIT,
       );
       if (dx !== 0 || dy !== 0) onLook();
     },
-    [yaw, pitch, onLook],
+    [yawRef, pitchRef, onLook],
   );
   const endTouch = useCallback((e: React.PointerEvent) => {
     if (e.pointerId === touchId.current) touchId.current = null;
@@ -326,9 +326,9 @@ function useLook(
 
 function PlayerRig({
   input: inputRef,
-  yaw,
-  pitch,
-  playerPos,
+  yaw: yawRef,
+  pitch: pitchRef,
+  playerPos: playerPosRef,
   onMoved,
   onJumped,
 }: {
@@ -344,13 +344,9 @@ function PlayerRig({
   const bobPhase = useRef(0);
   const { camera } = useThree();
 
-  useEffect(() => {
-    camera.rotation.order = "YXZ";
-  }, [camera]);
-
   useFrame((_, rawDelta) => {
     const dt = Math.min(rawDelta, 0.05);
-    const pos = playerPos.current;
+    const pos = playerPosRef.current;
     const inp = inputRef.current;
 
     // movement relative to look yaw
@@ -365,8 +361,8 @@ function PlayerRig({
       onMoved();
       const len = Math.hypot(mx, mz);
       const speed = 5.2;
-      const sin = Math.sin(yaw.current);
-      const cos = Math.cos(yaw.current);
+      const sin = Math.sin(yawRef.current);
+      const cos = Math.cos(yawRef.current);
       const wx = (mx * cos + mz * sin) / len;
       const wz = (-mx * sin + mz * cos) / len;
       pos.x += wx * speed * dt;
@@ -408,17 +404,20 @@ function PlayerRig({
       moving && grounded.current ? Math.sin(bobPhase.current) * 0.045 : 0;
 
     camera.position.set(pos.x, pos.y + EYE_HEIGHT + bob, pos.z);
-    camera.rotation.y = yaw.current;
-    camera.rotation.x = pitch.current;
+    camera.rotation.set(pitchRef.current, yawRef.current, 0, "YXZ");
   });
 
   return null;
 }
 
 /** Runs after the critters each frame and clears one-shot input flags. */
-function InputJanitor({ input }: { input: MutableRefObject<InputState> }) {
+function InputJanitor({
+  input: inputRef,
+}: {
+  input: MutableRefObject<InputState>;
+}) {
   useFrame(() => {
-    input.current.interactQueued = false;
+    inputRef.current.interactQueued = false;
   });
   return null;
 }
@@ -544,8 +543,8 @@ const INTERACT_RANGE = 2.6;
 
 function Critter({
   critter,
-  input,
-  playerPos,
+  input: inputRef,
+  playerPos: playerPosRef,
   onInteract,
 }: {
   critter: (typeof CRITTERS)[number];
@@ -560,7 +559,9 @@ function Critter({
   const msgIndex = useRef(0);
   const msgUntil = useRef(0);
   const spin = useRef(0);
-  const nextPeepAt = useRef(3 + Math.random() * 5);
+  const nextPeepAt = useRef(
+    3 + Math.abs(critter.home[0] * 7 + critter.home[1] * 3) % 5,
+  );
   const [near, setNear] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -569,7 +570,7 @@ function Critter({
     const g = group.current;
     if (!g) return;
     const t = state.clock.elapsedTime;
-    const p = playerPos.current;
+    const p = playerPosRef.current;
     const dx = p.x - g.position.x;
     const dz = p.z - g.position.z;
     const playerDist = Math.hypot(dx, dz);
@@ -578,8 +579,8 @@ function Critter({
     if (isNear !== near) setNear(isNear);
 
     // say hi!
-    if (isNear && input.current.interactQueued) {
-      input.current.interactQueued = false;
+    if (isNear && inputRef.current.interactQueued) {
+      inputRef.current.interactQueued = false;
       setMsg(critter.msgs[msgIndex.current % critter.msgs.length]);
       msgIndex.current += 1;
       msgUntil.current = t + 3.2;

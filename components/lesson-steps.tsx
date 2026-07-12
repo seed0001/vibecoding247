@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { FirstStepsSection } from "@/lib/data/first-steps";
 
 interface Step {
@@ -36,13 +42,16 @@ export function LessonSteps({
   const [steps] = useState<Step[]>(() => buildSteps(sections));
   const [index, setIndex] = useState(0);
   const [speaking, setSpeaking] = useState(false);
-  const [canSpeak, setCanSpeak] = useState(false);
+  const canSpeak = useSyncExternalStore(
+    () => () => {},
+    () => "speechSynthesis" in window,
+    () => false,
+  );
   const autoRead = useRef(false);
 
   const step = steps[index];
 
   useEffect(() => {
-    setCanSpeak("speechSynthesis" in window);
     return () => {
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     };
