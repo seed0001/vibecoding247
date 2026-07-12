@@ -8,6 +8,8 @@ import {
   AdditiveBlending,
   BackSide,
   BufferGeometry,
+  CanvasTexture,
+  SRGBColorSpace,
   DoubleSide,
   Float32BufferAttribute,
   Group,
@@ -580,63 +582,107 @@ function Desk() {
   );
 }
 
-/** LED telemetry board mounted beneath the neon sign. */
-function StatsBoard({ stats }: { stats: SiteStatsView | null }) {
-  const a = Math.PI / 2;
-  const r = WALL_RADIUS - 0.42;
+/**
+ * LED telemetry board beneath the neon sign. The readout is painted
+ * onto a CanvasTexture on the board mesh itself, so it is physically
+ * fixed to the wall like the 24/7 sign — no floating HTML overlay.
+ */
+const BOARD_W = 1024;
+const BOARD_H = 480;
+
+function drawBoard(texture: CanvasTexture, stats: SiteStatsView | null) {
+  const c = texture.image as HTMLCanvasElement;
+  const ctx = c.getContext("2d");
+  if (!ctx) return;
+  ctx.fillStyle = "#0b0b0f";
+  ctx.fillRect(0, 0, BOARD_W, BOARD_H);
+
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#f59e0b";
+  ctx.font = "bold 30px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText("L I V E   H U B   T E L E M E T R Y", 48, 62);
+
   const rows: [string, string][] = [
     ["VISITORS", stats ? formatCounter(stats.totalVisits) : "······"],
     ["EXPLORERS ONLINE", stats ? formatCounter(stats.activeNow, 3) : "···"],
-    ["REALMS", stats ? `${stats.realmsCurrent} / ∞` : "· / ∞"],
+    ["REALMS", stats ? String(stats.realmsCurrent) : "·"],
+    ["GAME CAPACITY", "∞"],
+    ["ACTIVE GAMES", stats ? formatCounter(stats.gamesCurrent) : "······"],
     ["TIME EXPLORED", stats ? formatDuration(stats.totalSeconds) : "······"],
   ];
+
+  const left = 48;
+  const right = BOARD_W - 48;
+  let y = 122;
+  for (const [label, value] of rows) {
+    ctx.font = "26px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillStyle = "rgba(253, 230, 138, 0.75)";
+    ctx.textAlign = "left";
+    ctx.fillText(label, left, y);
+    const labelWidth = ctx.measureText(label).width;
+
+    ctx.font = "bold 28px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillStyle = "#fcd34d";
+    ctx.textAlign = "right";
+    ctx.fillText(value, right, y);
+    const valueWidth = ctx.measureText(value).width;
+
+    // dotted leader between label and value
+    ctx.strokeStyle = "rgba(253, 230, 138, 0.22)";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([3, 9]);
+    ctx.beginPath();
+    ctx.moveTo(left + labelWidth + 18, y - 8);
+    ctx.lineTo(right - valueWidth - 18, y - 8);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.textAlign = "left";
+    y += 62;
+  }
+  texture.needsUpdate = true;
+}
+
+function StatsBoard({ stats }: { stats: SiteStatsView | null }) {
+  const texture = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = BOARD_W;
+    c.height = BOARD_H;
+    const t = new CanvasTexture(c);
+    t.colorSpace = SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  }, []);
+
+  useEffect(() => {
+    drawBoard(texture, stats);
+  }, [stats, texture]);
+
+  const a = Math.PI / 2;
+  const r = WALL_RADIUS - 0.42;
   return (
     <group
-      position={[Math.cos(a) * r, 2.62, Math.sin(a) * r]}
+      position={[Math.cos(a) * r, 2.55, Math.sin(a) * r]}
       rotation={[0, faceCenter(a), 0]}
     >
-      <mesh castShadow>
-        <boxGeometry args={[3.5, 1.42, 0.09]} />
-        <meshStandardMaterial color="#0c0c10" roughness={0.65} />
-      </mesh>
-      {/* thin brass frame */}
-      <mesh position={[0, 0, -0.005]}>
-        <boxGeometry args={[3.62, 1.54, 0.06]} />
+      {/* brass frame + board body */}
+      <mesh position={[0, 0, -0.01]}>
+        <boxGeometry args={[3.62, 1.82, 0.06]} />
         <meshStandardMaterial color="#3b2f20" metalness={0.7} roughness={0.35} />
       </mesh>
+      <mesh castShadow>
+        <boxGeometry args={[3.5, 1.7, 0.09]} />
+        <meshStandardMaterial color="#0c0c10" roughness={0.65} />
+      </mesh>
+      {/* the readout, painted on glass */}
+      <mesh position={[0, 0, 0.055]}>
+        <planeGeometry args={[3.32, 1.56]} />
+        <meshBasicMaterial map={texture} toneMapped={false} />
+      </mesh>
       {/* power LED */}
-      <mesh position={[1.62, -0.58, 0.06]}>
+      <mesh position={[1.62, -0.72, 0.06]}>
         <sphereGeometry args={[0.025, 8, 8]} />
         <meshStandardMaterial color="#4ade80" emissive="#4ade80" emissiveIntensity={2} toneMapped={false} />
       </mesh>
-      <Html
-        center
-        position={[0, 0, 0.06]}
-        transform
-        distanceFactor={5}
-        zIndexRange={[5, 0]}
-        className="pointer-events-none select-none"
-      >
-        <div className="w-[300px] p-3 font-mono">
-          <p className="text-[10px] font-bold tracking-[0.3em] text-amber-400">
-            LIVE HUB TELEMETRY
-          </p>
-          {rows.map(([label, value]) => (
-            <div
-              key={label}
-              className="mt-1.5 flex items-baseline justify-between text-[11px]"
-            >
-              <span className="text-amber-200/70">{label}</span>
-              <span className="mx-2 flex-1 overflow-hidden text-amber-200/25">
-                ····································
-              </span>
-              <span className="font-bold tracking-wider text-amber-300">
-                {value}
-              </span>
-            </div>
-          ))}
-        </div>
-      </Html>
     </group>
   );
 }

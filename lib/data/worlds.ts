@@ -214,3 +214,11 @@ export const worlds: World[] = [
 export function getWorld(slug: string): World | undefined {
   return worlds.find((w) => w.slug === slug);
 }
+
+/** Total live games/apps across every realm's zones. */
+export function countApps(): number {
+  return worlds.reduce(
+    (n, world) => n + world.zones.reduce((m, zone) => m + zone.apps.length, 0),
+    0,
+  );
+}

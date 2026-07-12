@@ -7,6 +7,7 @@ export interface SiteStatsView {
   activeNow: number;
   totalSeconds: number;
   realmsCurrent: number;
+  gamesCurrent: number;
 }
 
 const HEARTBEAT_MS = 25_000;
@@ -46,6 +47,7 @@ export function useSiteStats(): SiteStatsView | null {
         activeNow: Number(d.activeNow) || 0,
         totalSeconds: Number(d.totalSeconds) || 0,
         realmsCurrent: Number(d.realmsCurrent) || 0,
+        gamesCurrent: Number(d.gamesCurrent) || 0,
       });
     };
 
