@@ -22,6 +22,12 @@ import {
   makeWoodTexture,
 } from "@/lib/three-textures";
 import {
+  formatCounter,
+  formatDuration,
+  useSiteStats,
+  type SiteStatsView,
+} from "@/lib/use-site-stats";
+import {
   BlinkOverlay,
   Crosshair,
   GyroButton,
@@ -574,6 +580,67 @@ function Desk() {
   );
 }
 
+/** LED telemetry board mounted beneath the neon sign. */
+function StatsBoard({ stats }: { stats: SiteStatsView | null }) {
+  const a = Math.PI / 2;
+  const r = WALL_RADIUS - 0.42;
+  const rows: [string, string][] = [
+    ["VISITORS", stats ? formatCounter(stats.totalVisits) : "······"],
+    ["EXPLORERS ONLINE", stats ? formatCounter(stats.activeNow, 3) : "···"],
+    ["REALMS", stats ? `${stats.realmsCurrent} / ∞` : "· / ∞"],
+    ["TIME EXPLORED", stats ? formatDuration(stats.totalSeconds) : "······"],
+  ];
+  return (
+    <group
+      position={[Math.cos(a) * r, 2.62, Math.sin(a) * r]}
+      rotation={[0, faceCenter(a), 0]}
+    >
+      <mesh castShadow>
+        <boxGeometry args={[3.5, 1.42, 0.09]} />
+        <meshStandardMaterial color="#0c0c10" roughness={0.65} />
+      </mesh>
+      {/* thin brass frame */}
+      <mesh position={[0, 0, -0.005]}>
+        <boxGeometry args={[3.62, 1.54, 0.06]} />
+        <meshStandardMaterial color="#3b2f20" metalness={0.7} roughness={0.35} />
+      </mesh>
+      {/* power LED */}
+      <mesh position={[1.62, -0.58, 0.06]}>
+        <sphereGeometry args={[0.025, 8, 8]} />
+        <meshStandardMaterial color="#4ade80" emissive="#4ade80" emissiveIntensity={2} toneMapped={false} />
+      </mesh>
+      <Html
+        center
+        position={[0, 0, 0.06]}
+        transform
+        distanceFactor={5}
+        zIndexRange={[5, 0]}
+        className="pointer-events-none select-none"
+      >
+        <div className="w-[300px] p-3 font-mono">
+          <p className="text-[10px] font-bold tracking-[0.3em] text-amber-400">
+            LIVE HUB TELEMETRY
+          </p>
+          {rows.map(([label, value]) => (
+            <div
+              key={label}
+              className="mt-1.5 flex items-baseline justify-between text-[11px]"
+            >
+              <span className="text-amber-200/70">{label}</span>
+              <span className="mx-2 flex-1 overflow-hidden text-amber-200/25">
+                ····································
+              </span>
+              <span className="font-bold tracking-wider text-amber-300">
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Experience                                                          */
 /* ------------------------------------------------------------------ */
@@ -592,6 +659,7 @@ export function NexusExperience({ worlds }: { worlds: World[] }) {
     Math.PI,
   );
   const gyro = useGyroLook();
+  const stats = useSiteStats();
 
   const enter = useCallback(() => {
     setGreeting(false);
@@ -642,6 +710,7 @@ export function NexusExperience({ worlds }: { worlds: World[] }) {
         <Architecture />
         <DustMotes />
         <NeonSign />
+        <StatsBoard stats={stats} />
         <Desk />
         {SCONCE_ANGLES.map((angle, i) => (
           <Sconce key={i} angle={angle} flicker={i === 1} />
