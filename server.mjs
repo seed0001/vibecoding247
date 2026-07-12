@@ -107,6 +107,7 @@ function rosterFor(room, exceptId) {
       handle: member.user.handle,
       color: member.user.color,
       pos: member.pos,
+      voice: member.voice,
     });
   }
   return peers;
@@ -122,6 +123,7 @@ function handleSocket(ws, user) {
     room: null,
     pos: [0, 0, 0, 0], // x, y, z, yaw
     lastChat: 0,
+    voice: false,
   };
 
   ws.on("message", (raw) => {
@@ -152,6 +154,7 @@ function handleSocket(ws, user) {
           handle: user.handle,
           color: user.color,
           pos: conn.pos,
+          voice: conn.voice,
         },
         conn.id,
       );
@@ -162,6 +165,27 @@ function handleSocket(ws, user) {
       });
       conn.pos = pos;
       broadcast(conn.room, { type: "pos", id: conn.id, pos }, conn.id);
+    } else if (msg.type === "voice" && conn.room) {
+      conn.voice = !!msg.on;
+      broadcast(
+        conn.room,
+        { type: "voice", id: conn.id, on: conn.voice },
+        conn.id,
+      );
+    } else if (
+      msg.type === "rtc" &&
+      conn.room &&
+      typeof msg.to === "string" &&
+      msg.data &&
+      JSON.stringify(msg.data).length < 100000
+    ) {
+      const members = rooms.get(conn.room);
+      const target = members?.get(msg.to);
+      if (target && target.ws.readyState === 1) {
+        target.ws.send(
+          JSON.stringify({ type: "rtc", from: conn.id, data: msg.data }),
+        );
+      }
     } else if (msg.type === "chat" && conn.room && typeof msg.text === "string") {
       const now = Date.now();
       if (now - conn.lastChat < 800) return; // rate limit

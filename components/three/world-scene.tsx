@@ -475,6 +475,11 @@ export function WorldExperience({ world }: { world: World }) {
         sendChat={presence.sendChat}
         connected={presence.connected}
         signedIn={!!session.user}
+        voiceStatus={presence.voiceStatus}
+        micMuted={presence.micMuted}
+        joinVoice={presence.joinVoice}
+        leaveVoice={presence.leaveVoice}
+        toggleMute={presence.toggleMute}
       />
       <TouchControls inputRef={inputRef} />
       <GyroButton
