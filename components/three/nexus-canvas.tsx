@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { CanvasBoundary } from "@/components/three/canvas-boundary";
 import type { World } from "@/lib/data/worlds";
 
 const NexusExperience = dynamic(
@@ -16,5 +17,9 @@ const NexusExperience = dynamic(
 );
 
 export function NexusCanvas({ worlds }: { worlds: World[] }) {
-  return <NexusExperience worlds={worlds} />;
+  return (
+    <CanvasBoundary>
+      <NexusExperience worlds={worlds} />
+    </CanvasBoundary>
+  );
 }

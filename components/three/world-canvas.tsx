@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { CanvasBoundary } from "@/components/three/canvas-boundary";
 import type { World } from "@/lib/data/worlds";
 
 const WorldExperience = dynamic(
@@ -16,5 +17,9 @@ const WorldExperience = dynamic(
 );
 
 export function WorldCanvas({ world }: { world: World }) {
-  return <WorldExperience world={world} />;
+  return (
+    <CanvasBoundary>
+      <WorldExperience world={world} />
+    </CanvasBoundary>
+  );
 }
