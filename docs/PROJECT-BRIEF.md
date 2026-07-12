@@ -66,6 +66,32 @@ is visually new and untested.**
   Avatar customization via an in-world mirror is planned for later.
 - Warps (pedestals, return portals) exit pointer lock before router.push.
 
+## Multiplayer (live)
+
+- **Accounts**: handle + password only (no email — minimal PII, kids visit).
+  scrypt-hashed users + sessions persisted alongside stats (/data volume).
+  Routes under /api/auth/*; session cookie `vc247_session` (httpOnly).
+- **Presence**: custom server (`server.mjs` — `npm start` now runs it) wraps
+  Next and adds a WebSocket layer at `/ws` on the same port. Rooms = route
+  paths ("nexus", "worlds/galaxy"). Signed-in users appear to each other as
+  **glowing orbs** (their chosen color, name tag) in the Nexus and all
+  worlds, positions smoothed at ~10Hz. The ws server authenticates by
+  reading sessions.json/users.json from the data dir (no shared runtime
+  with Next).
+- **Chat**: press T (or tap 💬) — room-wide text chat, server-echoed,
+  rate-limited. Typing never triggers WASD (input guard checks target).
+- **Orb color**: picked at signup, changeable from the account chip
+  (top-left of every 3D page).
+- **Next phases**: WebRTC proximity VOICE using this same ws server for
+  signaling (owner wants people to literally talk); custom avatars to
+  replace orbs later, customized at an in-world mirror.
+- Client pieces: `lib/use-session.ts`, `lib/use-presence.ts`,
+  `components/multiplayer/{peer-orbs,chat-overlay,account-panel}.tsx`.
+- Galaxy realm rebuild is IN PROGRESS: `lib/galaxy.ts` (seeded procedural
+  universe, planet palette/naming, flag-claim resource economy outline)
+  is committed groundwork; the ship/flight/descent/surface experience is
+  the next build. See the roadmap.
+
 ## Stats engine
 
 - `lib/server/stats-store.ts`: in-memory + debounced atomic JSON writes.
