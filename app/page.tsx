@@ -1,113 +1,92 @@
 import Link from "next/link";
-import { HubCanvas } from "@/components/three/hub-canvas";
-import { guides } from "@/lib/data/guides";
-import { firstStepsLessons } from "@/lib/data/first-steps";
-import { programs } from "@/lib/data/programs";
-
-const tracks = [
-  {
-    href: "/first-steps",
-    title: "First Steps",
-    audience: "Young learners & absolute beginners",
-    description:
-      "A playable 3D world that starts from zero: learn to move with W-A-S-D, jump, and collect like a gamer, then walk into lessons on computers, AI, and your first tiny build.",
-    status: `${firstStepsLessons.length} lessons live`,
-    accent: "text-emerald-400",
-  },
-  {
-    href: "/guides",
-    title: "Builders",
-    audience: "Developers & makers shipping with AI",
-    description:
-      "In-depth guides on vibe coding and app building, a live pulse on GitHub and Hugging Face trends, and a verified directory of credits programs to fund your work.",
-    status: `${guides.length} guides · ${programs.length} programs`,
-    accent: "text-accent",
-  },
-  {
-    href: "/new-to-ai",
-    title: "New to the AI Era",
-    audience: "Experienced minds adapting to AI",
-    description:
-      "You already know how the world works — this track covers what changed: AI as a daily assistant, staying safe from AI-era scams, and building things you never thought you'd build.",
-    status: "Track in progress",
-    accent: "text-warning",
-  },
-];
+import { NexusCanvas } from "@/components/three/nexus-canvas";
+import { worlds } from "@/lib/data/worlds";
 
 export default function HomePage() {
   return (
     <div>
-      {/* Immersive hub */}
+      {/* The Nexus — you land inside it */}
       <section className="relative h-[calc(100vh-3.5rem)] min-h-[540px] w-full">
-        <HubCanvas />
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center px-6 pt-14 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-            The hub for AI-assisted builders
-          </p>
-          <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            Everyone starts somewhere. Pick your portal.
-          </h1>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/60">
-            Three tracks, one goal: making you great with AI — whether
-            you&apos;re six, shipping production software, or adapting a
-            lifetime of experience to new tools.
-          </p>
-        </div>
-        <p className="pointer-events-none absolute inset-x-0 bottom-5 text-center text-xs text-white/40">
-          Click a portal to enter · scroll for the classic view
-        </p>
+        <NexusCanvas worlds={worlds} />
       </section>
 
-      {/* Accessible / classic path chooser */}
+      {/* 2D fallback / classic directory */}
       <section className="mx-auto max-w-6xl px-6 py-20">
         <h2 className="text-xl font-semibold tracking-tight">
-          Choose your path
+          The five worlds
         </h2>
-        <div className="mt-6 grid gap-4 lg:grid-cols-3">
-          {tracks.map((track) => (
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+          Vibe Coding 24/7 is a hub of navigable 3D worlds where builders
+          submit their apps — hosted anywhere, linked here, sorted into
+          genre districts. Each world starts small and grows with every
+          submission. Prefer flat pages? Everything below is clickable.
+        </p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {worlds.map((world) => (
             <Link
-              key={track.href}
-              href={track.href}
-              className="group rounded-xl border border-border bg-card p-7 transition-colors hover:border-border-strong hover:bg-card-raised"
+              key={world.slug}
+              href={`/worlds/${world.slug}`}
+              className="group rounded-xl border border-border bg-card p-6 transition-colors hover:border-border-strong hover:bg-card-raised"
             >
-              <p className={`text-xs font-semibold uppercase tracking-wider ${track.accent}`}>
-                {track.audience}
+              <p className="text-2xl" aria-hidden>
+                {world.emblem}
               </p>
-              <h3 className="mt-3 text-lg font-semibold tracking-tight transition-colors group-hover:text-accent">
-                {track.title}
+              <h3 className="mt-3 font-semibold tracking-tight transition-colors group-hover:text-accent">
+                {world.name}
               </h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted">
-                {track.description}
+              <p className="mt-1 text-xs text-subtle">{world.tagline}</p>
+              <p className="mt-3 text-sm leading-relaxed text-muted">
+                {world.flavor}
               </p>
-              <p className="mt-5 font-mono text-xs text-subtle">{track.status}</p>
             </Link>
           ))}
         </div>
 
-        {/* Builders quick links */}
-        <div className="mt-14 grid gap-4 border-t border-border pt-10 sm:grid-cols-3">
-          <Link href="/guides" className="group">
-            <h3 className="font-medium tracking-tight transition-colors group-hover:text-accent">
-              How-to guides →
-            </h3>
-            <p className="mt-1 text-sm text-muted">
-              Prompting, tooling, shipping, debugging, and security.
-            </p>
-          </Link>
+        <div className="mt-14 rounded-xl border border-border bg-card p-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="max-w-2xl">
+              <h2 className="text-xl font-semibold tracking-tight">
+                Built something? Claim your spot.
+              </h2>
+              <p className="mt-2 leading-relaxed text-muted">
+                Submit any app you&apos;ve deployed — Vercel, Railway,
+                Cloudflare, wherever — and it gets a home in one of the five
+                worlds: a gate at the Terminal, a door at the Resort, a star
+                in the Galaxy.
+              </p>
+            </div>
+            <Link
+              href="/submit"
+              className="shrink-0 rounded-md bg-accent-strong px-5 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+            >
+              Submit your app
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-14 grid gap-4 border-t border-border pt-10 text-sm sm:grid-cols-3">
           <Link href="/pulse" className="group">
             <h3 className="font-medium tracking-tight transition-colors group-hover:text-accent">
               The Pulse →
             </h3>
-            <p className="mt-1 text-sm text-muted">
-              Live trends from GitHub and Hugging Face, refreshed hourly.
+            <p className="mt-1 text-muted">
+              Live AI &amp; dev trends from GitHub and Hugging Face.
             </p>
           </Link>
           <Link href="/programs" className="group">
             <h3 className="font-medium tracking-tight transition-colors group-hover:text-accent">
-              Credits &amp; programs →
+              Builder credits →
             </h3>
-            <p className="mt-1 text-sm text-muted">
-              {programs.length} verified programs funding builders right now.
+            <p className="mt-1 text-muted">
+              Verified programs funding builders — fuel for your submissions.
+            </p>
+          </Link>
+          <Link href="/guides" className="group">
+            <h3 className="font-medium tracking-tight transition-colors group-hover:text-accent">
+              Guides →
+            </h3>
+            <p className="mt-1 text-muted">
+              How-tos on vibe coding, shipping, and app security.
             </p>
           </Link>
         </div>

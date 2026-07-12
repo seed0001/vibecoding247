@@ -1,12 +1,14 @@
 import type { MetadataRoute } from "next";
 import { guides } from "@/lib/data/guides";
 import { firstStepsLessons } from "@/lib/data/first-steps";
+import { worlds } from "@/lib/data/worlds";
 
 const BASE = "https://vibecoding247.net";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticPages = [
     "",
+    "/submit",
     "/guides",
     "/pulse",
     "/programs",
@@ -17,6 +19,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     url: `${BASE}${path}`,
   }));
 
+  const worldPages = worlds.map((world) => ({
+    url: `${BASE}/worlds/${world.slug}`,
+  }));
+
   const guidePages = guides.map((guide) => ({
     url: `${BASE}/guides/${guide.slug}`,
   }));
@@ -25,5 +31,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     url: `${BASE}/first-steps/${lesson.slug}`,
   }));
 
-  return [...staticPages, ...guidePages, ...lessonPages];
+  return [...staticPages, ...worldPages, ...guidePages, ...lessonPages];
 }

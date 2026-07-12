@@ -1,9 +1,11 @@
 import Link from "next/link";
 
 const siteLinks = [
-  { href: "/guides", label: "Guides" },
+  { href: "/submit", label: "Submit your app" },
   { href: "/pulse", label: "Pulse" },
   { href: "/programs", label: "Credits & Programs" },
+  { href: "/guides", label: "Guides" },
+  { href: "/first-steps", label: "First Steps" },
   { href: "/about", label: "About" },
 ];
 
@@ -26,8 +28,8 @@ export function SiteFooter() {
               </span>
             </p>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-subtle">
-              Guides, trends, and funding resources for AI-assisted software
-              development.
+              A hub of navigable 3D worlds where builders submit and share
+              what they&apos;ve made.
             </p>
           </div>
           <div>

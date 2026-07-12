@@ -1,12 +1,5 @@
 import Link from "next/link";
-
-const nav = [
-  { href: "/first-steps", label: "First Steps" },
-  { href: "/guides", label: "Guides" },
-  { href: "/pulse", label: "Pulse" },
-  { href: "/programs", label: "Credits & Programs" },
-  { href: "/about", label: "About" },
-];
+import { worlds } from "@/lib/data/worlds";
 
 export function SiteHeader() {
   return (
@@ -21,16 +14,23 @@ export function SiteHeader() {
             24/7
           </span>
         </Link>
-        <nav className="flex items-center gap-6 text-sm">
-          {nav.map((item) => (
+        <nav className="flex items-center gap-5 text-sm">
+          {worlds.map((world) => (
             <Link
-              key={item.href}
-              href={item.href}
-              className="text-muted transition-colors hover:text-foreground"
+              key={world.slug}
+              href={`/worlds/${world.slug}`}
+              className="hidden text-muted transition-colors hover:text-foreground lg:inline"
+              title={world.name}
             >
-              {item.label}
+              {world.emblem}
             </Link>
           ))}
+          <Link
+            href="/submit"
+            className="rounded-md bg-accent-strong px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-accent-hover"
+          >
+            Submit your app
+          </Link>
         </nav>
       </div>
     </header>
