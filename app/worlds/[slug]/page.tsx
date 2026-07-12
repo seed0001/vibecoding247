@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { GalaxyCanvas } from "@/components/three/galaxy-canvas";
 import { WorldCanvas } from "@/components/three/world-canvas";
 import { getWorld, worlds } from "@/lib/data/worlds";
+import { FLAG_COST, RESOURCES, UNIVERSE } from "@/lib/galaxy";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -30,7 +32,11 @@ export default async function WorldPage({ params }: Props) {
   return (
     <div>
       <section className="relative h-[calc(100vh-3.5rem)] min-h-[540px] w-full">
-        <WorldCanvas world={world} />
+        {world.slug === "galaxy" ? (
+          <GalaxyCanvas />
+        ) : (
+          <WorldCanvas world={world} />
+        )}
       </section>
 
       {/* flat directory of this world */}
@@ -41,6 +47,36 @@ export default async function WorldPage({ params }: Props) {
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
           {world.flavor}
         </p>
+        {world.slug === "galaxy" && (
+          <div className="mt-8 rounded-xl border border-border bg-card p-6">
+            <h2 className="font-semibold tracking-tight">
+              How the Galaxy works
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              A procedurally generated universe of {UNIVERSE.length} planets
+              (and growing). Board the ship on the hangar deck, fly until a
+              world catches your eye, descend through the clouds, and land.
+              Planting a flag claims a spot for your colony, business, or
+              storefront — every claim costs resources:
+            </p>
+            <ul className="mt-4 space-y-1.5 text-sm text-muted">
+              {RESOURCES.map((r) => (
+                <li key={r.id}>
+                  <span className="font-mono">{r.icon}</span>{" "}
+                  <b className="text-foreground">
+                    {FLAG_COST[r.id] ?? 0}× {r.name}
+                  </b>{" "}
+                  — {r.description}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-xs text-subtle">
+              New explorers start with exactly enough for one claim. The
+              Supply Depot — where you&apos;ll stock up for bigger builds —
+              opens soon.
+            </p>
+          </div>
+        )}
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {world.zones.map((zone) => (
             <div

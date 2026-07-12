@@ -143,3 +143,26 @@ export function makeRugTexture(): CanvasTexture {
   t.colorSpace = SRGBColorSpace;
   return t;
 }
+
+/** Soft cloud puff on transparent canvas — billboarded during descent. */
+export function makeCloudTexture(tint = "#ffffff"): CanvasTexture {
+  const S = 256;
+  const c = makeCanvas(S, S);
+  const ctx = c.getContext("2d")!;
+  const rand = mulberry32(55);
+  for (let i = 0; i < 26; i++) {
+    const x = S / 2 + (rand() - 0.5) * S * 0.55;
+    const y = S / 2 + (rand() - 0.5) * S * 0.3;
+    const r = 22 + rand() * 46;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `${tint}66`);
+    g.addColorStop(1, `${tint}00`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  return t;
+}
