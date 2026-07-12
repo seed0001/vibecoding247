@@ -11,7 +11,6 @@ import type { Planet, PlanetKind } from "@/lib/galaxy";
  */
 
 const cache = new Map<string, IcosahedronGeometry>();
-const asteroidCache: IcosahedronGeometry[] = [];
 
 function mulberry32(seed: number) {
   let a = seed >>> 0;
@@ -108,30 +107,5 @@ export function getPlanetGeometry(planet: Planet): IcosahedronGeometry {
   geo.setAttribute("color", new BufferAttribute(colors, 3));
   geo.computeVertexNormals();
   cache.set(planet.id, geo);
-  return geo;
-}
-
-/** Lumpy unit-radius asteroid; a few cached variants, scaled per instance. */
-export function getAsteroidGeometry(variant: number): IcosahedronGeometry {
-  const idx = Math.abs(variant) % 4;
-  if (asteroidCache[idx]) return asteroidCache[idx];
-  const rand = mulberry32(500 + idx * 97);
-  const geo = new IcosahedronGeometry(1, 1);
-  const positions = geo.attributes.position;
-  const v = new Vector3();
-  const dirs = Array.from({ length: 4 }, () =>
-    new Vector3(rand() * 2 - 1, rand() * 2 - 1, rand() * 2 - 1).normalize(),
-  );
-  for (let i = 0; i < positions.count; i++) {
-    v.fromBufferAttribute(positions, i).normalize();
-    let n = 0;
-    for (let d = 0; d < dirs.length; d++) {
-      n += Math.sin((3 + d * 2.4) * v.dot(dirs[d]) + d) / (d + 1.5);
-    }
-    const r = 1 + 0.28 * n;
-    positions.setXYZ(i, v.x * r, v.y * r, v.z * r);
-  }
-  geo.computeVertexNormals();
-  asteroidCache[idx] = geo;
   return geo;
 }

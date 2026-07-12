@@ -10,18 +10,14 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Html } from "@react-three/drei";
+import { Html, Stars } from "@react-three/drei";
 import {
   AdditiveBlending,
   BufferGeometry,
   DoubleSide,
   Float32BufferAttribute,
   Group,
-  InstancedMesh,
   MathUtils,
-  Matrix4,
-  Quaternion,
-  ShaderMaterial,
   Vector3,
 } from "three";
 import {
@@ -38,9 +34,8 @@ import {
   type PlantedFlag,
   type ResourceBag,
 } from "@/lib/galaxy";
-import { makeCloudTexture } from "@/lib/three-textures";
-import { getAsteroidGeometry, getPlanetGeometry } from "@/lib/planet-geometry";
-import { getGalaxySkyboxTextures, SKYBOX_TILES } from "@/lib/galaxy-skybox";
+import { makeCloudTexture, makeNebulaTexture } from "@/lib/three-textures";
+import { getPlanetGeometry } from "@/lib/planet-geometry";
 import { AccountPanel } from "@/components/multiplayer/account-panel";
 import { ChatOverlay } from "@/components/multiplayer/chat-overlay";
 import { PeerOrbs } from "@/components/multiplayer/peer-orbs";
@@ -254,227 +249,87 @@ function FlightRig({
 /* ------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------------ */
-/* Galaxy backdrop: painted panorama skybox + twinkling stars + rocks   */
+/* Galaxy backdrop: nebula clouds + star clusters, purples and blues    */
 /* ------------------------------------------------------------------ */
 
-const SKY_RADIUS = 1300;
+const NEBULA_COLORS = ["#7c3aed", "#3b82f6", "#a855f7", "#22d3ee", "#ec4899"];
 
-function GalaxySkybox() {
-  const textures = useMemo(() => getGalaxySkyboxTextures(), []);
-  return (
-    <group>
-      {textures.map((texture, i) => (
-        <mesh key={i} renderOrder={-10}>
-          <sphereGeometry
-            args={[
-              SKY_RADIUS,
-              24,
-              20,
-              (i / SKYBOX_TILES) * Math.PI * 2,
-              (Math.PI * 2) / SKYBOX_TILES,
-            ]}
-          />
-          <meshBasicMaterial
-            map={texture}
-            side={1}
-            depthWrite={false}
-            fog={false}
-          />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-/* per-star twinkle + size variation via a tiny point shader */
-const STAR_VERTEX = `
-attribute float aSize;
-attribute float aPhase;
-attribute vec3 aColor;
-varying float vPhase;
-varying vec3 vColor;
-void main() {
-  vPhase = aPhase;
-  vColor = aColor;
-  vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  gl_PointSize = aSize * (420.0 / -mv.z);
-  gl_Position = projectionMatrix * mv;
-}
-`;
-const STAR_FRAGMENT = `
-uniform float uTime;
-varying float vPhase;
-varying vec3 vColor;
-void main() {
-  vec2 pc = gl_PointCoord - 0.5;
-  float d = length(pc);
-  if (d > 0.5) discard;
-  float speed = 0.7 + fract(vPhase * 13.7) * 2.4;
-  float tw = 0.55 + 0.45 * sin(uTime * speed + vPhase * 6.28318);
-  float alpha = smoothstep(0.5, 0.05, d) * tw;
-  gl_FragColor = vec4(vColor, alpha);
-}
-`;
-
-function tickStarMaterial(material: ShaderMaterial, time: number) {
-  material.uniforms.uTime.value = time;
-}
-
-function TwinkleStars() {
-  const material = useMemo(
-    () =>
-      new ShaderMaterial({
-        vertexShader: STAR_VERTEX,
-        fragmentShader: STAR_FRAGMENT,
-        uniforms: { uTime: { value: 0 } },
-        transparent: true,
-        depthWrite: false,
-        blending: AdditiveBlending,
-      }),
+function NebulaBackdrop() {
+  const textures = useMemo(
+    () => NEBULA_COLORS.map((color) => makeNebulaTexture(color)),
     [],
   );
-  const geometry = useMemo(() => {
-    const rand = mulberry32(31415);
-    const count = 2600;
-    const positions = new Float32Array(count * 3);
-    const sizes = new Float32Array(count);
-    const phases = new Float32Array(count);
-    const colors = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      // shell just inside the skybox
-      const r = 650 + rand() * 500;
-      const theta = rand() * Math.PI * 2;
-      const y = (rand() * 2 - 1) * 0.9;
-      const s = Math.sqrt(1 - y * y);
-      positions[i * 3] = Math.cos(theta) * s * r;
-      positions[i * 3 + 1] = y * r;
-      positions[i * 3 + 2] = Math.sin(theta) * s * r;
-      sizes[i] = 0.8 + rand() * rand() * 3.4;
-      phases[i] = rand();
-      const roll = rand();
-      const tint =
-        roll > 0.25
-          ? [1, 1, 1]
-          : roll > 0.1
-            ? [0.76, 0.85, 1]
-            : [1, 0.88, 0.74];
-      colors[i * 3] = tint[0];
-      colors[i * 3 + 1] = tint[1];
-      colors[i * 3 + 2] = tint[2];
-    }
-    const geo = new BufferGeometry();
-    geo.setAttribute("position", new Float32BufferAttribute(positions, 3));
-    geo.setAttribute("aSize", new Float32BufferAttribute(sizes, 1));
-    geo.setAttribute("aPhase", new Float32BufferAttribute(phases, 1));
-    geo.setAttribute("aColor", new Float32BufferAttribute(colors, 3));
-    return geo;
+
+  const sprites = useMemo(() => {
+    const rand = mulberry32(4242);
+    return Array.from({ length: 15 }, () => {
+      const a = rand() * Math.PI * 2;
+      const r = 550 + rand() * 320;
+      return {
+        pos: [
+          Math.cos(a) * r,
+          (rand() - 0.5) * 520,
+          Math.sin(a) * r,
+        ] as [number, number, number],
+        scale: 200 + rand() * 240,
+        tex: Math.floor(rand() * NEBULA_COLORS.length),
+        opacity: 0.09 + rand() * 0.1,
+        rotation: rand() * Math.PI * 2,
+      };
+    });
   }, []);
 
-  useFrame(({ clock }) => tickStarMaterial(material, clock.elapsedTime));
-
-  return <points geometry={geometry} material={material} />;
-}
-
-/* procedurally generated rocks drifting in two belts + strays */
-interface AsteroidInstance {
-  pos: [number, number, number];
-  scale: number;
-  rot: [number, number, number];
-  variant: number;
-}
-
-function buildAsteroidField(): AsteroidInstance[] {
-  const rand = mulberry32(60660);
-  const items: AsteroidInstance[] = [];
-  // two tilted belts
-  for (let belt = 0; belt < 2; belt++) {
-    const beltRadius = 260 + belt * 190;
-    const tilt = (rand() - 0.5) * 0.9;
-    for (let i = 0; i < 70; i++) {
+  const clusters = useMemo(() => {
+    const rand = mulberry32(777);
+    return Array.from({ length: 6 }, () => {
       const a = rand() * Math.PI * 2;
-      const r = beltRadius + (rand() - 0.5) * 90;
-      const y = Math.sin(a * 2 + belt) * 40 * tilt + (rand() - 0.5) * 50;
-      items.push({
-        pos: [Math.cos(a) * r, y, Math.sin(a) * r],
-        scale: 0.7 + rand() * rand() * 4.5,
-        rot: [rand() * Math.PI, rand() * Math.PI, rand() * Math.PI],
-        variant: Math.floor(rand() * 4),
-      });
-    }
-  }
-  // strays
-  for (let i = 0; i < 45; i++) {
-    const a = rand() * Math.PI * 2;
-    const r = 150 + rand() * 650;
-    items.push({
-      pos: [Math.cos(a) * r, (rand() - 0.5) * 400, Math.sin(a) * r],
-      scale: 0.5 + rand() * rand() * 3.5,
-      rot: [rand() * Math.PI, rand() * Math.PI, rand() * Math.PI],
-      variant: Math.floor(rand() * 4),
+      const r = 500 + rand() * 350;
+      const cx = Math.cos(a) * r;
+      const cy = (rand() - 0.5) * 420;
+      const cz = Math.sin(a) * r;
+      const spread = 30 + rand() * 45;
+      const positions: number[] = [];
+      for (let i = 0; i < 130; i++) {
+        // rough gaussian clump
+        const g = () => (rand() + rand() + rand() - 1.5) * spread;
+        positions.push(cx + g(), cy + g(), cz + g());
+      }
+      const geo = new BufferGeometry();
+      geo.setAttribute("position", new Float32BufferAttribute(positions, 3));
+      return {
+        geo,
+        color: rand() > 0.5 ? "#bfdbfe" : "#e9d5ff",
+        size: 2.4 + rand() * 1.6,
+      };
     });
-  }
-  return items;
-}
-
-function fillInstances(mesh: InstancedMesh, items: AsteroidInstance[]) {
-  const matrix = new Matrix4();
-  const quat = new Quaternion();
-  const scaleV = new Vector3();
-  const posV = new Vector3();
-  const eulerHelper = new Vector3();
-  items.forEach((item, i) => {
-    posV.set(...item.pos);
-    eulerHelper.set(...item.rot);
-    quat.setFromAxisAngle(
-      new Vector3(
-        Math.sin(eulerHelper.x),
-        Math.cos(eulerHelper.y),
-        Math.sin(eulerHelper.z),
-      ).normalize(),
-      eulerHelper.x + eulerHelper.y,
-    );
-    scaleV.setScalar(item.scale);
-    matrix.compose(posV, quat, scaleV);
-    mesh.setMatrixAt(i, matrix);
-  });
-  mesh.instanceMatrix.needsUpdate = true;
-}
-
-function AsteroidField() {
-  const groupRef = useRef<Group>(null);
-  const items = useMemo(() => buildAsteroidField(), []);
-  const byVariant = useMemo(() => {
-    const buckets: AsteroidInstance[][] = [[], [], [], []];
-    for (const item of items) buckets[item.variant].push(item);
-    return buckets;
-  }, [items]);
-  const meshRefs = useRef<(InstancedMesh | null)[]>([null, null, null, null]);
-
-  useEffect(() => {
-    byVariant.forEach((bucket, i) => {
-      const mesh = meshRefs.current[i];
-      if (mesh) fillInstances(mesh, bucket);
-    });
-  }, [byVariant]);
-
-  useFrame((_, dt) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += dt * 0.004; // slow orbital drift
-    }
-  });
+  }, []);
 
   return (
-    <group ref={groupRef}>
-      {byVariant.map((bucket, i) => (
-        <instancedMesh
-          key={i}
-          ref={(mesh) => {
-            meshRefs.current[i] = mesh;
-          }}
-          args={[getAsteroidGeometry(i), undefined, bucket.length]}
-        >
-          <meshStandardMaterial color="#6f675c" roughness={0.95} flatShading />
-        </instancedMesh>
+    <group>
+      {sprites.map((n, i) => (
+        <sprite key={i} position={n.pos} scale={[n.scale, n.scale, 1]}>
+          <spriteMaterial
+            map={textures[n.tex]}
+            transparent
+            opacity={n.opacity}
+            rotation={n.rotation}
+            blending={AdditiveBlending}
+            depthWrite={false}
+          />
+        </sprite>
+      ))}
+      {clusters.map((cluster, i) => (
+        <points key={i} geometry={cluster.geo}>
+          <pointsMaterial
+            color={cluster.color}
+            size={cluster.size}
+            sizeAttenuation
+            transparent
+            opacity={0.85}
+            blending={AdditiveBlending}
+            depthWrite={false}
+          />
+        </points>
       ))}
     </group>
   );
@@ -886,9 +741,8 @@ export function GalaxyExperience() {
             <color attach="background" args={["#04040a"]} />
             <ambientLight intensity={0.55} />
             <directionalLight position={[100, 60, 40]} intensity={2.4} />
-            <GalaxySkybox />
-            <TwinkleStars />
-            <AsteroidField />
+            <Stars radius={800} depth={400} count={6000} factor={12} saturation={0} fade speed={0.3} />
+            <NebulaBackdrop />
             {UNIVERSE.map((planet) => (
               <PlanetMesh key={planet.id} planet={planet} />
             ))}
@@ -907,8 +761,8 @@ export function GalaxyExperience() {
             <color attach="background" args={["#05050a"]} />
             <ambientLight intensity={0.5} />
             <pointLight position={[8, 10, 4]} intensity={90} color="#c7d2fe" />
-            <GalaxySkybox />
-            <TwinkleStars />
+            <Stars radius={70} depth={50} count={4000} factor={4} saturation={0} fade speed={0.5} />
+            <NebulaBackdrop />
             <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
               <circleGeometry args={[DECK_BOUNDS + 1, 64]} />
               <meshStandardMaterial color="#15152b" roughness={0.5} metalness={0.4} />
