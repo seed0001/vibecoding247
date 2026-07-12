@@ -13,6 +13,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, Sky } from "@react-three/drei";
 import { Group, MathUtils, Vector3 } from "three";
 import { getVisitedLessons } from "@/lib/first-steps-progress";
+import { sfx } from "@/lib/sfx";
 
 export interface WorldLesson {
   slug: string;
@@ -62,6 +63,8 @@ const CRITTERS: {
   kind: "bunny" | "blob" | "bird";
   color: string;
   home: [number, number];
+  /** voice pitch multiplier for its chirp */
+  pitch: number;
   msgs: string[];
 }[] = [
   {
@@ -70,6 +73,7 @@ const CRITTERS: {
     kind: "bunny",
     color: "#f472b6",
     home: [4, 3],
+    pitch: 1.25,
     msgs: [
       "Hi! I'm Pip! Press SPACE to jump — it's the best!",
       "Did you find the stars up on the pink platforms?",
@@ -82,6 +86,7 @@ const CRITTERS: {
     kind: "blob",
     color: "#34d399",
     home: [-5, -3],
+    pitch: 0.8,
     msgs: [
       "I'm Momo! I love naps in the grass.",
       "Walk into a glowing ring to open a lesson!",
@@ -94,6 +99,7 @@ const CRITTERS: {
     kind: "bird",
     color: "#60a5fa",
     home: [-8, 7],
+    pitch: 1.6,
     msgs: [
       "Cheep cheep! I'm Zuzu!",
       "Collect ALL the stars — you can do it!",
@@ -106,6 +112,7 @@ const CRITTERS: {
     kind: "blob",
     color: "#fbbf24",
     home: [9, 6],
+    pitch: 1.0,
     msgs: [
       "Heya, I'm Bo! You found me!",
       "If you fall off the edge, don't worry — you pop right back.",
@@ -370,6 +377,7 @@ function PlayerRig({
     if ((inp.jump || inp.jumpQueued) && grounded.current) {
       vel.current.y = 7.6;
       grounded.current = false;
+      sfx.jump();
       onJumped();
     }
     inp.jumpQueued = false;
@@ -389,6 +397,7 @@ function PlayerRig({
     if (pos.y < -14) {
       pos.set(...SPAWN);
       vel.current.set(0, 0, 0);
+      sfx.respawn();
     }
 
     // gentle head-bob while running on the ground
@@ -487,6 +496,7 @@ function LessonGate({
     const p = playerPos.current;
     if (Math.hypot(p.x - x, p.z - z) < 1.3 && p.y < 1.5) {
       fired.current = true;
+      sfx.gate();
       router.push(`/first-steps/${lesson.slug}`);
     }
   });
@@ -550,6 +560,7 @@ function Critter({
   const msgIndex = useRef(0);
   const msgUntil = useRef(0);
   const spin = useRef(0);
+  const nextPeepAt = useRef(3 + Math.random() * 5);
   const [near, setNear] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -573,7 +584,14 @@ function Critter({
       msgIndex.current += 1;
       msgUntil.current = t + 3.2;
       spin.current = Math.PI * 2;
+      sfx.critter(critter.pitch);
       onInteract();
+    }
+
+    // occasional soft peep when you're wandering close by
+    if (playerDist < 6 && t > nextPeepAt.current) {
+      nextPeepAt.current = t + 5 + Math.random() * 6;
+      sfx.peep(critter.pitch);
     }
     if (msg && t > msgUntil.current) setMsg(null);
 
@@ -803,6 +821,7 @@ export function FirstStepsPlayground({ lessons }: { lessons: WorldLesson[] }) {
   const onCollect = useCallback((id: string) => {
     setCollected((prev) => {
       if (prev.includes(id)) return prev;
+      sfx.collect();
       const next = [...prev, id];
       saveCollectedStars(next);
       setStep((s) => {
