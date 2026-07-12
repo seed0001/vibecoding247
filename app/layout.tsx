@@ -17,11 +17,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://vibecoding247.net"),
   title: {
-    default: "Vibe Coding 24/7 — How-Tos, Trends & Builder Credits",
+    default: "Vibe Coding 24/7 — Five Worlds of Builder-Made Apps",
     template: "%s | Vibe Coding 24/7",
   },
   description:
-    "The community hub for AI builders: practical how-to guides for vibe coding and app building, a live pulse on GitHub and Hugging Face trends, and a directory of credits programs to fund your builds.",
+    "A hub of navigable 3D worlds — the Grand Terminal, the Resort, the Galaxy, the Neon Metropolis, and the Wonders — where vibe coders submit their apps and explorers discover them.",
 };
 
 export default function RootLayout({
