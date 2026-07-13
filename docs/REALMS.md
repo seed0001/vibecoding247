@@ -74,8 +74,12 @@ most realistic, lifelike natural ecosystems we can build — structured as a
 seeded procedural universe.
 
 - Groundwork committed: `lib/galaxy.ts` (seeded procedural generation,
-  planet palettes/naming), `galaxy-experience.tsx` scene,
-  `planet-geometry.ts`.
+  planet palettes/naming), `galaxy-experience.tsx` scene.
+- Planet rendering: GPU shader terrain ported from
+  dgreenheck/threejs-procedural-planets (MIT) — `lib/planet-shaders.ts`,
+  `lib/planet-material.ts`, `procedural-planet.tsx`. Five-layer elevation
+  colors per kind, tinted particle atmospheres + rim glow, banded rings,
+  lava glow on volcanic worlds.
 - Next build: **ship flight → planet descent → surface exploration**, plus
   a **flag-claim resource economy** (claim planets, outlined in
   lib/galaxy.ts).
