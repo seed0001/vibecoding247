@@ -182,6 +182,17 @@ is visually new and untested.**
 - Emails in use (placeholders he may change): hello@vibecoding247.net,
   submit@vibecoding247.net.
 
+## Realm direction (owner-stated, 2026-07-13)
+
+- **`terminal` (The Grand Terminal) → the CONSOLE REALM.** Themed like a
+  "PlayStation emulator" area — but NOT actual PlayStation ROMs/games
+  (no copyrighted assets). Instead: original **3D reimaginings/reenactments
+  of classic console-era games**, playable in first person inside the realm.
+  Think retro console vibes rebuilt as walk-in 3D experiences.
+- **One realm (TBD which) → a huge THEME PARK**: roller coasters, rides,
+  midway/amusement-park games. Owner is outlining which realm gets what;
+  galaxy is already claimed (procedural universe build in progress).
+
 ## Roadmap (owner-stated, in rough order)
 
 1. **Drastic realism upgrades everywhere** — "very realistic realism type
