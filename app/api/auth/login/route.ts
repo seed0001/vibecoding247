@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { login, SESSION_COOKIE } from "@/lib/server/auth-store";
+import { clientIp, rateLimit } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  if (!rateLimit(`login:${clientIp(req)}`, 10, 60_000)) {
+    return NextResponse.json(
+      { error: "Too many attempts — wait a minute." },
+      { status: 429 },
+    );
+  }
   let handle = "";
   let password = "";
   try {
@@ -13,7 +20,7 @@ export async function POST(req: Request) {
   } catch {
     /* validated below */
   }
-  const result = login(handle, password);
+  const result = await login(handle, password);
   if (result.error || !result.user || !result.token) {
     return NextResponse.json(
       { error: result.error ?? "Sign-in failed." },

@@ -1,11 +1,14 @@
-import {
-  randomBytes,
-  scryptSync,
-  timingSafeEqual,
-} from "crypto";
+import { randomBytes, scrypt as scryptCb, timingSafeEqual } from "crypto";
+import { promisify } from "util";
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { rename, writeFile } from "fs/promises";
 import { join } from "path";
+
+const scrypt = promisify(scryptCb) as (
+  password: string,
+  salt: string,
+  keylen: number,
+) => Promise<Buffer>;
 
 /**
  * File-backed accounts + sessions. Same persistence strategy as the
@@ -109,27 +112,63 @@ function createStore(): AuthStore {
 const g = globalThis as unknown as { __vc247Auth?: AuthStore };
 const store = (g.__vc247Auth ??= createStore());
 
+function pruneExpiredSessions() {
+  const now = Date.now();
+  let changed = false;
+  for (const [token, session] of store.sessions) {
+    if (session.expires < now) {
+      store.sessions.delete(token);
+      changed = true;
+    }
+  }
+  if (changed) scheduleSave();
+}
+
+const gSweep = globalThis as unknown as { __vc247AuthSweep?: boolean };
+if (!gSweep.__vc247AuthSweep) {
+  gSweep.__vc247AuthSweep = true;
+  const sweep = setInterval(pruneExpiredSessions, 3_600_000);
+  sweep.unref?.();
+}
+
+async function writeFiles(): Promise<void> {
+  if (!store.dir) return;
+  const dir = store.dir;
+  const writeJson = async (file: string, data: unknown) => {
+    const path = join(dir, file);
+    const tmp = `${path}.tmp`;
+    await writeFile(tmp, JSON.stringify(data), "utf8");
+    await rename(tmp, path);
+  };
+  try {
+    await Promise.all([
+      writeJson("users.json", [...store.users.values()]),
+      writeJson("sessions.json", Object.fromEntries(store.sessions)),
+    ]);
+  } catch (err) {
+    console.error("[auth-store] persist failed:", err);
+  }
+}
+
 function scheduleSave() {
   if (!store.dir || store.saveTimer) return;
   store.saveTimer = setTimeout(() => {
     store.saveTimer = null;
-    const dir = store.dir!;
-    const writeJson = async (file: string, data: unknown) => {
-      const path = join(dir, file);
-      const tmp = `${path}.tmp`;
-      await writeFile(tmp, JSON.stringify(data), "utf8");
-      await rename(tmp, path);
-    };
-    void writeJson("users.json", [...store.users.values()]).catch(() => {});
-    void writeJson(
-      "sessions.json",
-      Object.fromEntries(store.sessions),
-    ).catch(() => {});
+    void writeFiles();
   }, SAVE_DEBOUNCE_MS);
 }
 
-function hashPassword(password: string, salt: string): string {
-  return scryptSync(password, salt, 64).toString("hex");
+/** Write NOW — signup/login must be on disk before the ws server needs it. */
+async function flushNow(): Promise<void> {
+  if (store.saveTimer) {
+    clearTimeout(store.saveTimer);
+    store.saveTimer = null;
+  }
+  await writeFiles();
+}
+
+async function hashPassword(password: string, salt: string): Promise<string> {
+  return (await scrypt(password, salt, 64)).toString("hex");
 }
 
 export function validateHandle(handle: string): string | null {
@@ -139,11 +178,11 @@ export function validateHandle(handle: string): string | null {
   return null;
 }
 
-export function signup(
+export async function signup(
   handle: string,
   password: string,
   color: string,
-): { user?: PublicUser; token?: string; error?: string } {
+): Promise<{ user?: PublicUser; token?: string; error?: string }> {
   const handleError = validateHandle(handle);
   if (handleError) return { error: handleError };
   if (password.length < 8) {
@@ -156,32 +195,36 @@ export function signup(
   const user: User = {
     id: randomBytes(9).toString("hex"),
     handle,
-    passHash: hashPassword(password, salt),
+    passHash: await hashPassword(password, salt),
     salt,
     color: ORB_COLORS.includes(color) ? color : ORB_COLORS[0],
     createdAt: Date.now(),
   };
+  // re-check after the async hash — two concurrent signups could race
+  if (store.handles.has(handle.toLowerCase())) {
+    return { error: "That handle is taken." };
+  }
   store.users.set(user.id, user);
   store.handles.set(handle.toLowerCase(), user.id);
   const token = createSession(user.id);
-  scheduleSave();
+  await flushNow();
   return { user: publicUser(user), token };
 }
 
-export function login(
+export async function login(
   handle: string,
   password: string,
-): { user?: PublicUser; token?: string; error?: string } {
+): Promise<{ user?: PublicUser; token?: string; error?: string }> {
   const id = store.handles.get(handle.toLowerCase());
   const user = id ? store.users.get(id) : undefined;
   if (!user) return { error: "No account with that handle." };
-  const attempt = Buffer.from(hashPassword(password, user.salt), "hex");
+  const attempt = Buffer.from(await hashPassword(password, user.salt), "hex");
   const actual = Buffer.from(user.passHash, "hex");
   if (attempt.length !== actual.length || !timingSafeEqual(attempt, actual)) {
     return { error: "Wrong password." };
   }
   const token = createSession(user.id);
-  scheduleSave();
+  await flushNow();
   return { user: publicUser(user), token };
 }
 
@@ -202,7 +245,12 @@ export function logout(token: string) {
 export function getUserByToken(token: string | undefined): PublicUser | null {
   if (!token) return null;
   const session = store.sessions.get(token);
-  if (!session || session.expires < Date.now()) return null;
+  if (!session) return null;
+  if (session.expires < Date.now()) {
+    store.sessions.delete(token);
+    scheduleSave();
+    return null;
+  }
   const user = store.users.get(session.userId);
   return user ? publicUser(user) : null;
 }
