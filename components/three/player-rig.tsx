@@ -537,38 +537,9 @@ export function BlinkOverlay() {
   const [closed, setClosed] = useState(true);
 
   useEffect(() => {
-    const reduced = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    timers.push(setTimeout(() => setClosed(false), 450));
-    if (!reduced) {
-      let cancelled = false;
-      const loop = () => {
-        timers.push(
-          setTimeout(
-            () => {
-              if (cancelled) return;
-              setClosed(true);
-              timers.push(
-                setTimeout(() => {
-                  if (cancelled) return;
-                  setClosed(false);
-                  loop();
-                }, 170),
-              );
-            },
-            7000 + Math.random() * 8000,
-          ),
-        );
-      };
-      loop();
-      return () => {
-        cancelled = true;
-        timers.forEach(clearTimeout);
-      };
-    }
-    return () => timers.forEach(clearTimeout);
+    // Open once on mount like waking up, then stay open (recurring blink disabled).
+    const timer = setTimeout(() => setClosed(false), 450);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
