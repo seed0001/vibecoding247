@@ -167,6 +167,31 @@ export function makeCloudTexture(tint = "#ffffff"): CanvasTexture {
   return t;
 }
 
+/** Banded planetary ring strip — map u runs inner→outer edge. */
+export function makeRingTexture(tint: string, seed: number): CanvasTexture {
+  const W = 256;
+  const c = makeCanvas(W, 4);
+  const ctx = c.getContext("2d")!;
+  const rand = mulberry32(seed);
+  const g = ctx.createLinearGradient(0, 0, W, 0);
+  // soft edges, seeded alpha bands, and a Cassini-style gap
+  const gap = 0.45 + rand() * 0.25;
+  g.addColorStop(0, `${tint}00`);
+  let u = 0.04;
+  while (u < 0.97) {
+    const near = Math.abs(u - gap) < 0.05;
+    const alpha = near ? 8 : 40 + Math.floor(rand() * 150);
+    g.addColorStop(u, `${tint}${alpha.toString(16).padStart(2, "0")}`);
+    u += 0.03 + rand() * 0.07;
+  }
+  g.addColorStop(1, `${tint}00`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, 4);
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  return t;
+}
+
 /** Wispy nebula puff — additive-blended far-background galaxy clouds. */
 export function makeNebulaTexture(tint: string): CanvasTexture {
   const S = 256;

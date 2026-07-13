@@ -35,7 +35,7 @@ import {
   type ResourceBag,
 } from "@/lib/galaxy";
 import { makeCloudTexture, makeNebulaTexture } from "@/lib/three-textures";
-import { getPlanetGeometry } from "@/lib/planet-geometry";
+import { ProceduralPlanet } from "@/components/three/procedural-planet";
 import { AccountPanel } from "@/components/multiplayer/account-panel";
 import { ChatOverlay } from "@/components/multiplayer/chat-overlay";
 import { PeerOrbs } from "@/components/multiplayer/peer-orbs";
@@ -331,28 +331,6 @@ function NebulaBackdrop() {
           />
         </points>
       ))}
-    </group>
-  );
-}
-
-function PlanetMesh({ planet }: { planet: Planet }) {
-  const terrain = useMemo(() => getPlanetGeometry(planet), [planet]);
-  return (
-    <group position={planet.position}>
-      <mesh geometry={terrain}>
-        <meshStandardMaterial vertexColors flatShading roughness={0.9} />
-      </mesh>
-      {/* atmosphere */}
-      <mesh>
-        <sphereGeometry args={[planet.radius * 1.06, 24, 16]} />
-        <meshBasicMaterial color={planet.atmosphereColor} transparent opacity={0.14} />
-      </mesh>
-      {planet.hasRings && (
-        <mesh rotation={[Math.PI / 2.4, 0.2, 0]}>
-          <torusGeometry args={[planet.radius * 1.7, planet.radius * 0.16, 2, 48]} />
-          <meshStandardMaterial color={planet.ringColor} roughness={0.7} transparent opacity={0.8} side={DoubleSide} />
-        </mesh>
-      )}
     </group>
   );
 }
@@ -744,7 +722,7 @@ export function GalaxyExperience() {
             <Stars radius={800} depth={400} count={6000} factor={12} saturation={0} fade speed={0.3} />
             <NebulaBackdrop />
             {UNIVERSE.map((planet) => (
-              <PlanetMesh key={planet.id} planet={planet} />
+              <ProceduralPlanet key={planet.id} planet={planet} />
             ))}
             <FlightRig
               inputRef={inputRef}
