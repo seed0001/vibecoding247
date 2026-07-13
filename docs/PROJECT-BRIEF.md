@@ -189,9 +189,12 @@ is visually new and untested.**
   (no copyrighted assets). Instead: original **3D reimaginings/reenactments
   of classic console-era games**, playable in first person inside the realm.
   Think retro console vibes rebuilt as walk-in 3D experiences.
-- **One realm (TBD which) → a huge THEME PARK**: roller coasters, rides,
-  midway/amusement-park games. Owner is outlining which realm gets what;
-  galaxy is already claimed (procedural universe build in progress).
+- **`resort` (The Resort) → ALL-INCLUSIVE RESORT + THEME PARK.** Two-sided
+  destination: an **adult side** with sandy beaches and casino games, and a
+  **kid side** with a full theme park — characters, fun kid games, roller
+  coasters and rides. One realm, two vibes.
+- `galaxy` is already claimed (procedural universe build in progress).
+- `metropolis` and `wonders` direction: TBD, owner outlining.
 
 ## Roadmap (owner-stated, in rough order)
 
