@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE, signup } from "@/lib/server/auth-store";
+import { clientIp, rateLimit } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  if (!rateLimit(`signup:${clientIp(req)}`, 5, 600_000)) {
+    return NextResponse.json(
+      { error: "Too many sign-ups from here — try again later." },
+      { status: 429 },
+    );
+  }
   let handle = "";
   let password = "";
   let color = "";
@@ -15,7 +22,7 @@ export async function POST(req: Request) {
   } catch {
     /* validated below */
   }
-  const result = signup(handle, password, color);
+  const result = await signup(handle, password, color);
   if (result.error || !result.user || !result.token) {
     return NextResponse.json(
       { error: result.error ?? "Sign-up failed." },

@@ -125,6 +125,7 @@ function handleSocket(ws, user) {
     room: null,
     pos: [0, 0, 0, 0], // x, y, z, yaw
     lastChat: 0,
+    lastPos: 0,
     voice: false,
   };
 
@@ -161,6 +162,9 @@ function handleSocket(ws, user) {
         conn.id,
       );
     } else if (msg.type === "pos" && conn.room && Array.isArray(msg.pos)) {
+      const now = Date.now();
+      if (now - conn.lastPos < 50) return; // server-side fan-out gate
+      conn.lastPos = now;
       const pos = msg.pos.slice(0, 4).map((n) => {
         const v = Number(n);
         return Number.isFinite(v) ? Math.max(-2000, Math.min(2000, v)) : 0;
