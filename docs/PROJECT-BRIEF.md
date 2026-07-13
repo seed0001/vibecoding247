@@ -196,10 +196,14 @@ is visually new and untested.**
 - **`metropolis` (The Neon Metropolis) → a huge 3D SHOPPING MALL.** Real
   commerce: real products, real storefronts that people can **lease out**
   to sell their products, all inside a massive walkable 3D mall.
-- **`wonders` (The Wonders) → HYPER-REALISTIC NATURAL ECOSYSTEMS.** The most
-  realistic, lifelike ecosystems we can build — several distinct climate
-  types/biomes (e.g. rainforest, desert, tundra, reef — exact set TBD),
-  pushing the realism bar as far as it can go.
+- **`wonders` (The Wonders) → HYPER-REALISTIC NATURAL ECOSYSTEMS as a
+  GRAPHICS BENCHMARK.** Several distinct climate types/biomes (e.g.
+  rainforest, desert, tundra, reef — exact set TBD). Each ecosystem scales
+  from a very basic/minimal-graphics tier up to the most extreme realism we
+  can produce ("8K"-grade) — deliberately taxing the user's GPU like a
+  benchmark test ("how much can your system take"). Extreme tiers feature
+  millions of blades of grass (instancing) and hundreds of thousands of
+  critters roaming with sound. Think 3DMark-meets-nature-documentary.
 - **`galaxy` (The Galaxy) → procedural universe** (build already in
   progress: ship/flight/planet descent, flag-claim economy).
 
