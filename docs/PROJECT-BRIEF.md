@@ -193,8 +193,15 @@ is visually new and untested.**
   destination: an **adult side** with sandy beaches and casino games, and a
   **kid side** with a full theme park — characters, fun kid games, roller
   coasters and rides. One realm, two vibes.
-- `galaxy` is already claimed (procedural universe build in progress).
-- `metropolis` and `wonders` direction: TBD, owner outlining.
+- **`metropolis` (The Neon Metropolis) → a huge 3D SHOPPING MALL.** Real
+  commerce: real products, real storefronts that people can **lease out**
+  to sell their products, all inside a massive walkable 3D mall.
+- **`wonders` (The Wonders) → HYPER-REALISTIC NATURAL ECOSYSTEMS.** The most
+  realistic, lifelike ecosystems we can build — several distinct climate
+  types/biomes (e.g. rainforest, desert, tundra, reef — exact set TBD),
+  pushing the realism bar as far as it can go.
+- **`galaxy` (The Galaxy) → procedural universe** (build already in
+  progress: ship/flight/planet descent, flag-claim economy).
 
 ## Roadmap (owner-stated, in rough order)
 
