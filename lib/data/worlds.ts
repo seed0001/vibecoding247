@@ -183,30 +183,8 @@ export const worlds: World[] = [
     flavor:
       "A mythic continent of colossal wonders, each one a genre. Apps are the treasures inside.",
     zones: [
-      {
-        slug: "colosseum",
-        name: "The Colosseum",
-        description: "Games worthy of an arena crowd.",
-        apps: [],
-      },
-      {
-        slug: "great-library",
-        name: "The Great Library",
-        description: "Tools and knowledge, shelved in stone.",
-        apps: [],
-      },
-      {
-        slug: "hanging-gardens",
-        name: "The Hanging Gardens",
-        description: "Creative AI growing in every direction.",
-        apps: [],
-      },
-      {
-        slug: "oracle",
-        name: "The Oracle",
-        description: "AI experiments that answer back.",
-        apps: [],
-      },
+      // Simulation realms — placeholder zones removed. Each realm will
+      // host its own distinct simulation (TBD).
     ],
   },
 ];
