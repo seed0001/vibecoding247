@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Html, MeshReflectorMaterial, Stars } from "@react-three/drei";
+import { MeshReflectorMaterial, Stars } from "@react-three/drei";
 import {
   AdditiveBlending,
   BackSide,
@@ -158,6 +158,132 @@ function Emblem({ world }: { world: World }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Etched pedestal nameplates                                         */
+/* ------------------------------------------------------------------ */
+
+// World name etched onto the column of each pedestal. The plate is
+// painted onto a curved canvas band that hugs the column's surface and
+// faces the room center — physically fixed, no floating HTML overlay.
+const ETCH_W = 1024;
+const ETCH_H = 400;
+const ETCH_R = 0.37; // just proud of the column surface (column ~0.36)
+const ETCH_THETA = 1.35; // radians of column circumference the band spans
+const ETCH_HEIGHT = 0.2;
+
+function drawEtchLabel(texture: CanvasTexture, world: World) {
+  const c = texture.image as HTMLCanvasElement;
+  const ctx = c.getContext("2d");
+  if (!ctx) return;
+
+  // dark brushed-metal plate
+  const bg = ctx.createLinearGradient(0, 0, 0, ETCH_H);
+  bg.addColorStop(0, "#1c1c24");
+  bg.addColorStop(0.5, "#24242e");
+  bg.addColorStop(1, "#181820");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, ETCH_W, ETCH_H);
+  for (let i = 0; i < 48; i++) {
+    const y = (i / 48) * ETCH_H;
+    ctx.strokeStyle = "rgba(0,0,0,0.012)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(ETCH_W, y);
+    ctx.stroke();
+  }
+
+  // brass double border
+  ctx.strokeStyle = "#8a6d3b";
+  ctx.lineWidth = 5;
+  ctx.strokeRect(20, 20, ETCH_W - 40, ETCH_H - 40);
+  ctx.strokeStyle = "rgba(232,201,138,0.35)";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(32, 32, ETCH_W - 64, ETCH_H - 64);
+
+  // world name — serif, gold gradient, auto-fit to the plate
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  let size = 96;
+  ctx.font = `${size}px Georgia, 'Times New Roman', serif`;
+  while (ctx.measureText(world.name).width > ETCH_W - 160 && size > 40) {
+    size -= 4;
+    ctx.font = `${size}px Georgia, 'Times New Roman', serif`;
+  }
+  const nameY = ETCH_H / 2 - 48;
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.fillText(world.name, ETCH_W / 2 + 2, nameY + 3);
+  const gold = ctx.createLinearGradient(0, nameY - size, 0, nameY + size);
+  gold.addColorStop(0, "#f0d9a0");
+  gold.addColorStop(0.5, "#d3a95f");
+  gold.addColorStop(1, "#9c6f2f");
+  ctx.fillStyle = gold;
+  ctx.fillText(world.name, ETCH_W / 2, nameY);
+
+  // ornamental diverging rule with a diamond
+  const dy = ETCH_H / 2 + 8;
+  ctx.strokeStyle = "rgba(232,201,138,0.5)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(ETCH_W / 2 - 100, dy);
+  ctx.lineTo(ETCH_W / 2 - 26, dy);
+  ctx.moveTo(ETCH_W / 2 + 26, dy);
+  ctx.lineTo(ETCH_W / 2 + 100, dy);
+  ctx.stroke();
+  ctx.save();
+  ctx.translate(ETCH_W / 2, dy);
+  ctx.rotate(Math.PI / 4);
+  ctx.fillStyle = "#e8c98a";
+  ctx.fillRect(-6, -6, 12, 12);
+  ctx.restore();
+
+  // tagline — small-caps brass beneath the name
+  const tagY = ETCH_H / 2 + 62;
+  ctx.font = "600 30px ui-sans-serif, system-ui, -apple-system, sans-serif";
+  ctx.fillStyle = "rgba(232,201,138,0.72)";
+  ctx.fillText(world.tagline.toUpperCase(), ETCH_W / 2, tagY);
+
+  texture.needsUpdate = true;
+}
+
+function EtchedLabel({ world, a }: { world: World; a: number }) {
+  const texture = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = ETCH_W;
+    c.height = ETCH_H;
+    const t = new CanvasTexture(c);
+    t.colorSpace = SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  }, []);
+
+  useEffect(() => {
+    drawEtchLabel(texture, world);
+  }, [texture, world]);
+
+  // The band wraps the column at its mid-height and, rotated to
+  // faceCenter(a), opens toward the room center. theta 0 lies on the
+  // group's +Z, so centering the sweep there faces the arriving player.
+  return (
+    <group position={[0, 0.62, 0]} rotation={[0, faceCenter(a), 0]}>
+      <mesh>
+        <cylinderGeometry
+          args={[
+            ETCH_R,
+            ETCH_R,
+            ETCH_HEIGHT,
+            24,
+            1,
+            true,
+            -ETCH_THETA / 2,
+            ETCH_THETA,
+          ]}
+        />
+        <meshBasicMaterial map={texture} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
 /* Pedestals + alcoves                                                 */
 /* ------------------------------------------------------------------ */
 
@@ -214,19 +340,7 @@ function Pedestal({
         <meshBasicMaterial color={world.color} transparent opacity={0.45} />
       </mesh>
       <pointLight position={[0, 1.7, 0]} intensity={5.5} distance={5.5} color={world.color} />
-      <Html
-        center
-        position={[0, 2.45, 0]}
-        zIndexRange={[5, 0]}
-        className="pointer-events-none select-none"
-      >
-        <div className="w-40 text-center">
-          <p className="text-sm font-semibold tracking-tight text-white">
-            {world.name}
-          </p>
-          <p className="mt-0.5 text-[10px] text-white/50">{world.tagline}</p>
-        </div>
-      </Html>
+      <EtchedLabel world={world} a={a} />
     </group>
   );
 }
